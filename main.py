@@ -70,7 +70,7 @@ try:
     def main():
         """Main application entry point."""
         print("Starting Coal Deposit Interpolation Application...")
-        print("Version: 0.7.0")
+        print("Version: 1.0.0-rc1")
         if mock_mode:
             print("Mode: DEMO (using mock dependencies)")
         else:
