@@ -12,9 +12,19 @@ try:
     import vtk
     from vtk.util import numpy_support
     VTK_AVAILABLE = True
+    
+    # Define mock vtk types for type hints when VTK is available
+    vtkActor = vtk.vtkActor
+    vtkVolume = vtk.vtkVolume
 except ImportError:
     vtk = None
     VTK_AVAILABLE = False
+    
+    # Create mock types for type hints when VTK is not available
+    class MockVTKType:
+        pass
+    vtkActor = MockVTKType
+    vtkVolume = MockVTKType
 
 # Fallback to matplotlib for basic 3D plotting
 try:
@@ -107,7 +117,7 @@ class VTKRenderer:
                      z_col: str,
                      value_col: Optional[str] = None,
                      point_size: float = 5.0,
-                     colormap: str = 'viridis') -> vtk.vtkActor:
+                     colormap: str = 'viridis') -> vtkActor:
         """
         Render 3D point cloud from well data.
         
@@ -177,7 +187,7 @@ class VTKRenderer:
                       y_grid: np.ndarray,
                       z_grid: np.ndarray,
                       colormap: str = 'viridis',
-                      opacity: float = 1.0) -> vtk.vtkActor:
+                      opacity: float = 1.0) -> vtkActor:
         """
         Render interpolated surface from grid data.
         
@@ -241,7 +251,7 @@ class VTKRenderer:
                          z_grid: np.ndarray,
                          isovalue: float,
                          color: Tuple[float, float, float] = (1.0, 0.0, 0.0),
-                         opacity: float = 0.7) -> vtk.vtkActor:
+                         opacity: float = 0.7) -> vtkActor:
         """
         Render isosurface at specified value.
         
@@ -306,7 +316,7 @@ class VTKRenderer:
                      y_grid: np.ndarray,
                      z_grid: np.ndarray,
                      colormap: str = 'viridis',
-                     opacity_function: Optional[Callable] = None) -> vtk.vtkVolume:
+                     opacity_function: Optional[Callable] = None) -> vtkVolume:
         """
         Render volume visualization of 3D data.
         
@@ -437,7 +447,7 @@ class VTKRenderer:
         lut.Build()
         return lut
     
-    def add_colorbar(self, actor: vtk.vtkActor, title: str = "Values"):
+    def add_colorbar(self, actor: vtkActor, title: str = "Values"):
         """
         Add colorbar to the renderer.
         
@@ -524,13 +534,12 @@ class VTKRenderer:
             self.renderer.RemoveActor(actor)
         self.actors.clear()
     
-    def close(self):
-        """Close the render window and clean up."""
-        if self.render_window:
-            self.render_window.Finalize()
-        if self.interactor:
-            self.interactor.TerminateApp()
-
+        def close(self):
+            """Close the render window and clean up."""
+            if self.render_window:
+                self.render_window.Finalize()
+            if self.interactor:
+                self.interactor.TerminateApp()
 
 class Plot3D:
     """

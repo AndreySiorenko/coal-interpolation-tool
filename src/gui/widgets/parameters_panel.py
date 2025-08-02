@@ -7,6 +7,9 @@ from tkinter import ttk, messagebox
 from typing import Dict, Any, List, Optional
 from tkinter import scrolledtext
 
+# Import i18n system
+from ...i18n import _
+
 
 class ParametersPanel:
     """
@@ -32,12 +35,19 @@ class ParametersPanel:
         self.value_columns = []
         
         # Create main frame
-        self.frame = ttk.LabelFrame(parent, text="Parameters", padding="5")
+        self.frame = ttk.LabelFrame(parent, text=_("Parameters"), padding="5")
+        
+        # Store UI elements for language updates
+        self.ui_elements = {}
         
         # Parameter variables
         self.setup_variables()
         self.create_widgets()
         self.setup_bindings()
+        
+        # Register for language change events
+        from ...i18n import add_language_change_listener
+        add_language_change_listener(self.update_language)
         
     def setup_variables(self):
         """Setup tkinter variables for parameters."""
@@ -80,58 +90,64 @@ class ParametersPanel:
         
     def create_widgets(self):
         """Create the panel widgets."""
-        # Create notebook for different parameter categories
+        # Create notebook for different methods
         self.notebook = ttk.Notebook(self.frame)
         self.notebook.pack(fill=tk.BOTH, expand=True)
         
-        # Method and data tab
-        self.create_method_tab()
+        # Create IDW method tab with all its parameters
+        self.create_idw_method_tab()
         
-        # IDW parameters tab
-        self.create_idw_tab()
+        # Create RBF method tab with all its parameters  
+        self.create_rbf_method_tab()
         
-        # RBF parameters tab
-        self.create_rbf_tab()
+        # Create Kriging method tab with all its parameters
+        self.create_kriging_method_tab()
         
-        # Kriging parameters tab
-        self.create_kriging_tab()
-        
-        # Search parameters tab
-        self.create_search_tab()
-        
-        # Grid parameters tab
-        self.create_grid_tab()
-        
-        # Recommendations tab
-        self.create_recommendations_tab()
+        # Create Analysis and Recommendations tab
+        self.create_analysis_tab()
         
         # Action buttons
         self.create_action_buttons()
         
-    def create_method_tab(self):
-        """Create the method and data selection tab."""
-        method_frame = ttk.Frame(self.notebook)
-        self.notebook.add(method_frame, text="Method & Data")
+        # Bind tab selection to method change
+        self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
         
-        # Method selection
-        method_group = ttk.LabelFrame(method_frame, text="Interpolation Method", padding="5")
-        method_group.pack(fill=tk.X, pady=(0, 5))
+    def create_idw_method_tab(self):
+        """Create the IDW method tab with all parameters."""
+        idw_frame = ttk.Frame(self.notebook)
+        self.notebook.add(idw_frame, text="ОВР")
         
-        methods = [("IDW", "IDW"), ("RBF", "RBF"), ("Kriging", "Kriging")]
-        for i, (text, value) in enumerate(methods):
-            ttk.Radiobutton(
-                method_group, 
-                text=text, 
-                variable=self.method_var, 
-                value=value,
-                state=tk.NORMAL  # Enable all methods
-            ).grid(row=i, column=0, sticky=tk.W, pady=2)
-            
+        # Create scrollable frame
+        canvas = tk.Canvas(idw_frame, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(idw_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        def configure_scroll_region(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            # Also update the window width to match canvas width
+            canvas_width = canvas.winfo_width()
+            if canvas_width > 1:  # Only if canvas has been drawn
+                canvas.itemconfig(canvas_window, width=canvas_width)
+        
+        scrollable_frame.bind("<Configure>", configure_scroll_region)
+        canvas.bind("<Configure>", configure_scroll_region)
+        
+        canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Enable mouse wheel scrolling
+        def on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind("<MouseWheel>", on_mousewheel)
+        
         # Value column selection
-        data_group = ttk.LabelFrame(method_frame, text="Data Column", padding="5")
-        data_group.pack(fill=tk.X)
+        data_group = ttk.LabelFrame(scrollable_frame, text=_("Data Column"), padding="5")
+        data_group.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(data_group, text="Value Column:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(data_group, text=_("Value Column:")).grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
         
         self.value_column_combo = ttk.Combobox(
             data_group, 
@@ -140,19 +156,17 @@ class ParametersPanel:
             width=20
         )
         self.value_column_combo.grid(row=0, column=1, sticky=tk.W+tk.E, padx=(0, 5))
-        
         data_group.columnconfigure(1, weight=1)
         
-    def create_idw_tab(self):
-        """Create the IDW parameters tab."""
-        idw_frame = ttk.Frame(self.notebook)
-        self.notebook.add(idw_frame, text="IDW Parameters")
+        # IDW Parameters
+        idw_params_group = ttk.LabelFrame(scrollable_frame, text=_("IDW Parameters"), padding="5")
+        idw_params_group.pack(fill=tk.X, pady=(0, 10))
         
         # Power parameter
-        power_frame = ttk.Frame(idw_frame)
+        power_frame = ttk.Frame(idw_params_group)
         power_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(power_frame, text="Power (p):").pack(side=tk.LEFT)
+        ttk.Label(power_frame, text=_("Power (p):")).pack(side=tk.LEFT)
         
         power_scale = ttk.Scale(
             power_frame, 
@@ -166,14 +180,13 @@ class ParametersPanel:
         
         self.power_label = ttk.Label(power_frame, text="2.0")
         self.power_label.pack(side=tk.LEFT)
-        
         power_scale.config(command=self.update_power_label)
         
         # Smoothing parameter
-        smoothing_frame = ttk.Frame(idw_frame)
+        smoothing_frame = ttk.Frame(idw_params_group)
         smoothing_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(smoothing_frame, text="Smoothing:").pack(side=tk.LEFT)
+        ttk.Label(smoothing_frame, text=_("Smoothing:")).pack(side=tk.LEFT)
         
         smoothing_scale = ttk.Scale(
             smoothing_frame, 
@@ -187,61 +200,87 @@ class ParametersPanel:
         
         self.smoothing_label = ttk.Label(smoothing_frame, text="0.0")
         self.smoothing_label.pack(side=tk.LEFT)
-        
         smoothing_scale.config(command=self.update_smoothing_label)
         
-        # Help text
-        help_text = """
-Power Parameter (p):
-• Controls distance decay rate
-• Higher values = more local influence
-• Typical range: 1.0 - 3.0
-
-Smoothing:
-• Prevents division by zero
-• Use small values (0.0 - 0.1)
-• Only needed for exact point matches
-        """
+        # Search Parameters
+        self.create_search_params(scrollable_frame)
         
-        help_label = ttk.Label(idw_frame, text=help_text.strip(), justify=tk.LEFT)
-        help_label.pack(anchor=tk.W, pady=(10, 0))
+        # Grid Parameters
+        self.create_grid_params(scrollable_frame)
         
-    def create_rbf_tab(self):
-        """Create the RBF parameters tab."""
+        # Set method to IDW when this tab is created
+        self.method_var.set("IDW")
+        
+    def create_rbf_method_tab(self):
+        """Create the RBF method tab with all parameters."""
         rbf_frame = ttk.Frame(self.notebook)
-        self.notebook.add(rbf_frame, text="RBF Parameters")
+        self.notebook.add(rbf_frame, text="РБФ")
         
-        # Kernel selection
-        kernel_frame = ttk.LabelFrame(rbf_frame, text="Kernel Type", padding="5")
-        kernel_frame.pack(fill=tk.X, pady=(0, 10))
+        # Create scrollable frame
+        canvas = tk.Canvas(rbf_frame, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(rbf_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
         
-        ttk.Label(kernel_frame, text="Kernel:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        def configure_scroll_region(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            # Also update the window width to match canvas width
+            canvas_width = canvas.winfo_width()
+            if canvas_width > 1:  # Only if canvas has been drawn
+                canvas.itemconfig(canvas_window, width=canvas_width)
         
-        kernel_options = [
-            ("Multiquadric", "multiquadric"),
-            ("Gaussian", "gaussian"), 
-            ("Inverse Multiquadric", "inverse_multiquadric"),
-            ("Thin Plate Spline", "thin_plate_spline"),
-            ("Linear", "linear"),
-            ("Cubic", "cubic"),
-            ("Quintic", "quintic")
-        ]
+        scrollable_frame.bind("<Configure>", configure_scroll_region)
+        canvas.bind("<Configure>", configure_scroll_region)
         
-        self.kernel_combo = ttk.Combobox(
-            kernel_frame,
-            textvariable=self.rbf_kernel_var,
-            values=[option[1] for option in kernel_options],
+        canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Enable mouse wheel scrolling
+        def on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind("<MouseWheel>", on_mousewheel)
+        
+        # Value column selection
+        data_group = ttk.LabelFrame(scrollable_frame, text=_("Data Column"), padding="5")
+        data_group.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(data_group, text=_("Value Column:")).grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        
+        rbf_value_combo = ttk.Combobox(
+            data_group, 
+            textvariable=self.value_column_var,
             state="readonly",
             width=20
         )
-        self.kernel_combo.grid(row=0, column=1, sticky=tk.W+tk.E)
-        kernel_frame.columnconfigure(1, weight=1)
+        rbf_value_combo.grid(row=0, column=1, sticky=tk.W+tk.E, padx=(0, 5))
+        data_group.columnconfigure(1, weight=1)
+        
+        # RBF Parameters
+        rbf_params_group = ttk.LabelFrame(scrollable_frame, text=_("RBF Parameters"), padding="5")
+        rbf_params_group.pack(fill=tk.X, pady=(0, 10))
+        
+        # Kernel selection
+        kernel_frame = ttk.Frame(rbf_params_group)
+        kernel_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(kernel_frame, text=_("Kernel:")).pack(side=tk.LEFT)
+        
+        kernel_combo = ttk.Combobox(
+            kernel_frame,
+            textvariable=self.rbf_kernel_var,
+            values=["multiquadric", "inverse", "gaussian", "linear", "cubic", "quintic", "thin_plate"],
+            state="readonly",
+            width=15
+        )
+        kernel_combo.pack(side=tk.LEFT, padx=(10, 0))
         
         # Shape parameter
-        shape_frame = ttk.Frame(rbf_frame)
+        shape_frame = ttk.Frame(rbf_params_group)
         shape_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(shape_frame, text="Shape Parameter (ε):").pack(side=tk.LEFT)
+        ttk.Label(shape_frame, text=_("Shape Parameter (ε):")).pack(side=tk.LEFT)
         
         shape_scale = ttk.Scale(
             shape_frame,
@@ -253,16 +292,15 @@ Smoothing:
         )
         shape_scale.pack(side=tk.LEFT, padx=(10, 5), fill=tk.X, expand=True)
         
-        self.shape_label = ttk.Label(shape_frame, text="1.0")
-        self.shape_label.pack(side=tk.LEFT)
-        
+        self.rbf_shape_label = ttk.Label(shape_frame, text="1.0")
+        self.rbf_shape_label.pack(side=tk.LEFT)
         shape_scale.config(command=self.update_shape_label)
         
-        # Regularization parameter
-        reg_frame = ttk.Frame(rbf_frame)
+        # Regularization
+        reg_frame = ttk.Frame(rbf_params_group)
         reg_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(reg_frame, text="Regularization:").pack(side=tk.LEFT)
+        ttk.Label(reg_frame, text=_("Regularization:")).pack(side=tk.LEFT)
         
         reg_scale = ttk.Scale(
             reg_frame,
@@ -274,518 +312,453 @@ Smoothing:
         )
         reg_scale.pack(side=tk.LEFT, padx=(10, 5), fill=tk.X, expand=True)
         
-        self.reg_label = ttk.Label(reg_frame, text="1e-12")
-        self.reg_label.pack(side=tk.LEFT)
-        
+        self.rbf_reg_label = ttk.Label(reg_frame, text="1e-12")
+        self.rbf_reg_label.pack(side=tk.LEFT)
         reg_scale.config(command=self.update_reg_label)
         
-        # Polynomial degree
-        poly_frame = ttk.LabelFrame(rbf_frame, text="Polynomial Augmentation", padding="5")
-        poly_frame.pack(fill=tk.X, pady=(0, 10))
+        # Polynomial augmentation
+        poly_group = ttk.LabelFrame(scrollable_frame, text=_("Polynomial Augmentation"), padding="5")
+        poly_group.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(poly_frame, text="Polynomial Degree:").grid(row=0, column=0, sticky=tk.W)
+        poly_frame = ttk.Frame(poly_group)
+        poly_frame.pack(fill=tk.X)
         
-        poly_options = [("-1 (None)", -1), ("0 (Constant)", 0), ("1 (Linear)", 1)]
-        for i, (text, value) in enumerate(poly_options):
-            ttk.Radiobutton(
-                poly_frame,
-                text=text,
-                variable=self.rbf_polynomial_var,
-                value=value
-            ).grid(row=i, column=1, sticky=tk.W, pady=1)
+        ttk.Label(poly_frame, text=_("Polynomial Degree:")).pack(side=tk.LEFT)
         
-        # Global vs Local mode
-        mode_frame = ttk.LabelFrame(rbf_frame, text="Interpolation Mode", padding="5")
-        mode_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        ttk.Radiobutton(
-            mode_frame,
-            text="Global (use all points)",
-            variable=self.rbf_global_var,
-            value=True
-        ).pack(anchor=tk.W)
-        
-        ttk.Radiobutton(
-            mode_frame,
-            text="Local (use search parameters)",
-            variable=self.rbf_global_var,
-            value=False
-        ).pack(anchor=tk.W)
-        
-        # Help text
-        help_text = """
-Kernel Types:
-• Multiquadric: √(1 + (εr)²) - smooth, global support
-• Gaussian: exp(-(εr)²) - very smooth, compact support
-• Inverse Multiquadric: 1/√(1 + (εr)²) - smooth decay
-• Thin Plate Spline: r²ln(r) - natural smoothness
-• Linear: r - simple, less smooth
-• Cubic/Quintic: r³/r⁵ - polynomial growth
-
-Shape Parameter (ε):
-• Controls kernel "width" or influence radius
-• Higher values = more local influence
-• Optimal value depends on data density
-
-Regularization:
-• Prevents numerical instability
-• Use small values (1e-15 to 1e-6)
-• Increase if getting convergence errors
-        """
-        
-        help_label = ttk.Label(rbf_frame, text=help_text.strip(), justify=tk.LEFT, font=("TkDefaultFont", 8))
-        help_label.pack(anchor=tk.W, pady=(10, 0))
-        
-    def create_kriging_tab(self):
-        """Create the Kriging parameters tab."""
-        kriging_frame = ttk.Frame(self.notebook)
-        self.notebook.add(kriging_frame, text="Kriging Parameters")
-        
-        # Kriging type selection
-        type_frame = ttk.LabelFrame(kriging_frame, text="Kriging Type", padding="5")
-        type_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        ttk.Label(type_frame, text="Type:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
-        
-        type_options = [
-            ("Ordinary Kriging", "ordinary"),
-            ("Simple Kriging", "simple")
-        ]
-        
-        self.kriging_type_combo = ttk.Combobox(
-            type_frame,
-            textvariable=self.kriging_type_var,
-            values=[option[1] for option in type_options],
+        poly_combo = ttk.Combobox(
+            poly_frame,
+            textvariable=self.rbf_polynomial_var,
+            values=[-1, 0, 1, 2, 3],
             state="readonly",
-            width=15
+            width=10
         )
-        self.kriging_type_combo.grid(row=0, column=1, sticky=tk.W+tk.E)
-        type_frame.columnconfigure(1, weight=1)
-        
-        # Variogram model selection
-        model_frame = ttk.LabelFrame(kriging_frame, text="Variogram Model", padding="5")
-        model_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        ttk.Label(model_frame, text="Model:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
-        
-        model_options = [
-            ("Spherical", "spherical"),
-            ("Exponential", "exponential"),
-            ("Gaussian", "gaussian"),
-            ("Linear", "linear"),
-            ("Power", "power"),
-            ("Nugget", "nugget")
-        ]
-        
-        self.variogram_combo = ttk.Combobox(
-            model_frame,
-            textvariable=self.kriging_variogram_var,
-            values=[option[1] for option in model_options],
-            state="readonly",
-            width=15
-        )
-        self.variogram_combo.grid(row=0, column=1, sticky=tk.W+tk.E)
-        model_frame.columnconfigure(1, weight=1)
-        
-        # Variogram parameters
-        params_frame = ttk.LabelFrame(kriging_frame, text="Variogram Parameters", padding="5")
-        params_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        # Nugget parameter
-        ttk.Label(params_frame, text="Nugget:").grid(row=0, column=0, sticky=tk.W)
-        self.nugget_entry = ttk.Entry(params_frame, textvariable=self.kriging_nugget_var, width=10)
-        self.nugget_entry.grid(row=0, column=1, padx=5, sticky=tk.W)
-        ttk.Label(params_frame, text="(micro-scale variance)").grid(row=0, column=2, sticky=tk.W)
-        
-        # Sill parameter  
-        ttk.Label(params_frame, text="Sill:").grid(row=1, column=0, sticky=tk.W)
-        self.sill_entry = ttk.Entry(params_frame, textvariable=self.kriging_sill_var, width=10)
-        self.sill_entry.grid(row=1, column=1, padx=5, sticky=tk.W)
-        ttk.Label(params_frame, text="(total variance)").grid(row=1, column=2, sticky=tk.W)
-        
-        # Range parameter
-        ttk.Label(params_frame, text="Range:").grid(row=2, column=0, sticky=tk.W)
-        self.range_entry = ttk.Entry(params_frame, textvariable=self.kriging_range_var, width=10)
-        self.range_entry.grid(row=2, column=1, padx=5, sticky=tk.W)
-        ttk.Label(params_frame, text="(correlation distance)").grid(row=2, column=2, sticky=tk.W)
-        
-        # Auto-fit variogram checkbox
-        fit_frame = ttk.LabelFrame(kriging_frame, text="Variogram Fitting", padding="5")
-        fit_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        ttk.Checkbutton(
-            fit_frame,
-            text="Automatically fit variogram parameters",
-            variable=self.kriging_auto_fit_var,
-            command=self.toggle_kriging_manual_params
-        ).pack(anchor=tk.W)
+        poly_combo.pack(side=tk.LEFT, padx=(10, 0))
         
         # Interpolation mode
-        mode_frame = ttk.LabelFrame(kriging_frame, text="Interpolation Mode", padding="5")
-        mode_frame.pack(fill=tk.X, pady=(0, 10))
+        mode_group = ttk.LabelFrame(scrollable_frame, text=_("Interpolation Mode"), padding="5")
+        mode_group.pack(fill=tk.X, pady=(0, 10))
         
         ttk.Radiobutton(
-            mode_frame,
-            text="Global (use all points)",
-            variable=self.kriging_global_var,
+            mode_group,
+            text=_("Global (use all points)"),
+            variable=self.rbf_global_var,
             value=True
         ).pack(anchor=tk.W)
         
         ttk.Radiobutton(
-            mode_frame,
-            text="Local (use search parameters)",
-            variable=self.kriging_global_var,
+            mode_group,
+            text=_("Local (use search parameters)"),
+            variable=self.rbf_global_var,
             value=False
         ).pack(anchor=tk.W)
         
-        # Help text
-        help_text = """
-Kriging Types:
-• Ordinary: Assumes unknown constant mean
-• Simple: Assumes known constant mean (most common)
-
-Variogram Models:
-• Spherical: Linear rise to sill at range
-• Exponential: Asymptotic approach to sill
-• Gaussian: Very smooth, short-range correlation
-• Linear: No sill, continuous increase
-• Power: Fractal behavior, no sill
-• Nugget: Pure noise, no spatial correlation
-
-Parameters:
-• Nugget: Measurement error + micro-scale variation
-• Sill: Total variance at large distances
-• Range: Distance where correlation becomes negligible
-
-Auto-fit: Estimates parameters from data automatically
-        """
+        # Search Parameters (only if local mode)
+        self.create_search_params(scrollable_frame)
         
-        help_label = ttk.Label(kriging_frame, text=help_text.strip(), justify=tk.LEFT, font=("TkDefaultFont", 8))
-        help_label.pack(anchor=tk.W, pady=(10, 0))
+        # Grid Parameters
+        self.create_grid_params(scrollable_frame)
         
-    def create_search_tab(self):
-        """Create the search parameters tab."""
-        search_frame = ttk.Frame(self.notebook)
-        self.notebook.add(search_frame, text="Search Parameters")
+        # Set method to RBF when this tab is created
+        self.method_var.set("RBF")
         
-        # Search radius
-        radius_frame = ttk.Frame(search_frame)
-        radius_frame.pack(fill=tk.X, pady=(0, 5))
+    def create_kriging_method_tab(self):
+        """Create the Kriging method tab with all parameters."""
+        kriging_frame = ttk.Frame(self.notebook)
+        self.notebook.add(kriging_frame, text="Кригинг")
         
-        ttk.Label(radius_frame, text="Search Radius:").grid(row=0, column=0, sticky=tk.W)
-        ttk.Entry(
-            radius_frame, 
-            textvariable=self.search_radius_var, 
-            width=10
-        ).grid(row=0, column=1, padx=(5, 2), sticky=tk.W)
-        ttk.Label(radius_frame, text="meters").grid(row=0, column=2, sticky=tk.W)
+        # Create scrollable frame
+        canvas = tk.Canvas(kriging_frame, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(kriging_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
         
-        # Point limits
-        points_frame = ttk.LabelFrame(search_frame, text="Point Limits", padding="5")
-        points_frame.pack(fill=tk.X, pady=(0, 5))
+        def configure_scroll_region(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            # Also update the window width to match canvas width
+            canvas_width = canvas.winfo_width()
+            if canvas_width > 1:  # Only if canvas has been drawn
+                canvas.itemconfig(canvas_window, width=canvas_width)
         
-        ttk.Label(points_frame, text="Minimum Points:").grid(row=0, column=0, sticky=tk.W)
-        ttk.Entry(
-            points_frame, 
-            textvariable=self.min_points_var, 
-            width=5
-        ).grid(row=0, column=1, padx=5, sticky=tk.W)
+        scrollable_frame.bind("<Configure>", configure_scroll_region)
+        canvas.bind("<Configure>", configure_scroll_region)
         
-        ttk.Label(points_frame, text="Maximum Points:").grid(row=1, column=0, sticky=tk.W)
-        ttk.Entry(
-            points_frame, 
-            textvariable=self.max_points_var, 
-            width=5
-        ).grid(row=1, column=1, padx=5, sticky=tk.W)
+        canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
         
-        # Sectoral search
-        sectors_frame = ttk.LabelFrame(search_frame, text="Sectoral Search", padding="5")
-        sectors_frame.pack(fill=tk.X)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
         
-        ttk.Checkbutton(
-            sectors_frame, 
-            text="Use sectoral search", 
-            variable=self.use_sectors_var,
-            command=self.toggle_sectors
-        ).pack(anchor=tk.W)
+        # Enable mouse wheel scrolling
+        def on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind("<MouseWheel>", on_mousewheel)
         
-        self.sectors_config_frame = ttk.Frame(sectors_frame)
-        self.sectors_config_frame.pack(fill=tk.X, pady=(5, 0))
+        # Value column selection
+        data_group = ttk.LabelFrame(scrollable_frame, text=_("Data Column"), padding="5")
+        data_group.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(self.sectors_config_frame, text="Number of sectors:").grid(row=0, column=0, sticky=tk.W)
-        ttk.Entry(
-            self.sectors_config_frame, 
-            textvariable=self.n_sectors_var, 
-            width=5,
-            state=tk.DISABLED
-        ).grid(row=0, column=1, padx=5, sticky=tk.W)
+        ttk.Label(data_group, text=_("Value Column:")).grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
         
-    def create_grid_tab(self):
-        """Create the grid parameters tab."""
-        grid_frame = ttk.Frame(self.notebook)
-        self.notebook.add(grid_frame, text="Grid Parameters")
+        kriging_value_combo = ttk.Combobox(
+            data_group, 
+            textvariable=self.value_column_var,
+            state="readonly",
+            width=20
+        )
+        kriging_value_combo.grid(row=0, column=1, sticky=tk.W+tk.E, padx=(0, 5))
+        data_group.columnconfigure(1, weight=1)
         
-        # Cell size
-        cell_frame = ttk.Frame(grid_frame)
-        cell_frame.pack(fill=tk.X, pady=(0, 10))
+        # Kriging Parameters
+        kriging_params_group = ttk.LabelFrame(scrollable_frame, text=_("Kriging Parameters"), padding="5")
+        kriging_params_group.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(cell_frame, text="Cell Size:").grid(row=0, column=0, sticky=tk.W)
-        ttk.Entry(
-            cell_frame, 
-            textvariable=self.cell_size_var, 
-            width=10
-        ).grid(row=0, column=1, padx=(5, 2), sticky=tk.W)
-        ttk.Label(cell_frame, text="meters").grid(row=0, column=2, sticky=tk.W)
+        # Kriging type
+        type_frame = ttk.Frame(kriging_params_group)
+        type_frame.pack(fill=tk.X, pady=(0, 10))
         
-        # Buffer
-        buffer_frame = ttk.Frame(grid_frame)
-        buffer_frame.pack(fill=tk.X, pady=(0, 10))
+        ttk.Label(type_frame, text=_("Type:")).pack(side=tk.LEFT)
         
-        ttk.Label(buffer_frame, text="Buffer:").grid(row=0, column=0, sticky=tk.W)
-        ttk.Entry(
-            buffer_frame, 
-            textvariable=self.buffer_var, 
-            width=10
-        ).grid(row=0, column=1, padx=(5, 2), sticky=tk.W)
-        ttk.Label(buffer_frame, text="(0.0-1.0 = %, >1.0 = meters)").grid(row=0, column=2, sticky=tk.W)
+        type_combo = ttk.Combobox(
+            type_frame,
+            textvariable=self.kriging_type_var,
+            values=["ordinary", "simple", "universal"],
+            state="readonly",
+            width=15
+        )
+        type_combo.pack(side=tk.LEFT, padx=(10, 0))
         
-        # Grid info button
-        ttk.Button(
-            grid_frame, 
-            text="Preview Grid Info", 
-            command=self.show_grid_preview
-        ).pack(pady=(10, 0))
+        # Variogram model
+        variogram_group = ttk.LabelFrame(scrollable_frame, text=_("Variogram Model"), padding="5")
+        variogram_group.pack(fill=tk.X, pady=(0, 10))
         
-        # Help text
-        help_text = """
-Cell Size:
-• Determines interpolation resolution
-• Smaller = higher resolution, slower
-• Consider data density when choosing
-
-Buffer:
-• Extends grid beyond data bounds
-• Values 0.0-1.0: percentage of range
-• Values >1.0: absolute distance in meters
-        """
+        model_frame = ttk.Frame(variogram_group)
+        model_frame.pack(fill=tk.X, pady=(0, 10))
         
-        help_label = ttk.Label(grid_frame, text=help_text.strip(), justify=tk.LEFT)
-        help_label.pack(anchor=tk.W, pady=(10, 0))
+        ttk.Label(model_frame, text=_("Model:")).pack(side=tk.LEFT)
         
-    def create_recommendations_tab(self):
-        """Create the recommendations tab."""
-        rec_frame = ttk.Frame(self.notebook)
-        self.notebook.add(rec_frame, text="Recommendations")
+        model_combo = ttk.Combobox(
+            model_frame,
+            textvariable=self.kriging_variogram_var,
+            values=["spherical", "exponential", "gaussian", "linear"],
+            state="readonly",
+            width=15
+        )
+        model_combo.pack(side=tk.LEFT, padx=(10, 0))
         
-        # Store recommendation report
-        self.recommendation_report = None
+        # Variogram parameters
+        params_group = ttk.LabelFrame(scrollable_frame, text=_("Variogram Parameters"), padding="5")
+        params_group.pack(fill=tk.X, pady=(0, 10))
         
-        # Control buttons
-        btn_frame = ttk.Frame(rec_frame)
-        btn_frame.pack(fill=tk.X, pady=(0, 10))
+        # Nugget
+        nugget_frame = ttk.Frame(params_group)
+        nugget_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(nugget_frame, text=_("Nugget:")).pack(side=tk.LEFT)
+        nugget_entry = ttk.Entry(nugget_frame, textvariable=self.kriging_nugget_var, width=10)
+        nugget_entry.pack(side=tk.LEFT, padx=(10, 5))
+        ttk.Label(nugget_frame, text=_("(micro-scale variance)")).pack(side=tk.LEFT)
+        
+        # Sill
+        sill_frame = ttk.Frame(params_group)
+        sill_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(sill_frame, text=_("Sill:")).pack(side=tk.LEFT)
+        sill_entry = ttk.Entry(sill_frame, textvariable=self.kriging_sill_var, width=10)
+        sill_entry.pack(side=tk.LEFT, padx=(10, 5))
+        ttk.Label(sill_frame, text=_("(total variance)")).pack(side=tk.LEFT)
+        
+        # Range
+        range_frame = ttk.Frame(params_group)
+        range_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(range_frame, text=_("Range:")).pack(side=tk.LEFT)
+        range_entry = ttk.Entry(range_frame, textvariable=self.kriging_range_var, width=10)
+        range_entry.pack(side=tk.LEFT, padx=(10, 5))
+        ttk.Label(range_frame, text=_("(correlation distance)")).pack(side=tk.LEFT)
+        
+        # Variogram fitting
+        fitting_group = ttk.LabelFrame(scrollable_frame, text=_("Variogram Fitting"), padding="5")
+        fitting_group.pack(fill=tk.X, pady=(0, 10))
+        
+        self.auto_fit_check = ttk.Checkbutton(
+            fitting_group,
+            text=_("Automatically fit variogram parameters"),
+            variable=self.kriging_auto_fit_var,
+            command=self.toggle_kriging_manual_params
+        )
+        self.auto_fit_check.pack(anchor=tk.W)
+        
+        # Search Parameters
+        self.create_search_params(scrollable_frame)
+        
+        # Grid Parameters
+        self.create_grid_params(scrollable_frame)
+        
+        # Set method to Kriging when this tab is created  
+        self.method_var.set("Kriging")
+        
+    def create_analysis_tab(self):
+        """Create the Analysis and Recommendations tab."""
+        analysis_frame = ttk.Frame(self.notebook)
+        self.notebook.add(analysis_frame, text=_("Analysis and Recommendations"))
+        
+        # Create scrollable frame
+        canvas = tk.Canvas(analysis_frame, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(analysis_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        def configure_scroll_region(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            # Also update the window width to match canvas width
+            canvas_width = canvas.winfo_width()
+            if canvas_width > 1:  # Only if canvas has been drawn
+                canvas.itemconfig(canvas_window, width=canvas_width)
+        
+        scrollable_frame.bind("<Configure>", configure_scroll_region)
+        canvas.bind("<Configure>", configure_scroll_region)
+        
+        canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Enable mouse wheel scrolling
+        def on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind("<MouseWheel>", on_mousewheel)
+        
+        # Analysis controls
+        controls_frame = ttk.Frame(scrollable_frame)
+        controls_frame.pack(fill=tk.X, pady=(0, 10))
         
         self.analyze_btn = ttk.Button(
-            btn_frame,
-            text="Analyze Data",
+            controls_frame,
+            text=_("Analyze Data"),
             command=self.analyze_data
         )
-        self.analyze_btn.pack(side=tk.LEFT, padx=(0, 5))
+        self.analyze_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         self.apply_btn = ttk.Button(
-            btn_frame,
-            text="Apply Recommendations",
+            controls_frame,
+            text=_("Apply Recommendations"),
             command=self.apply_recommendations,
             state=tk.DISABLED
         )
-        self.apply_btn.pack(side=tk.LEFT, padx=(0, 5))
+        self.apply_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Progress bar
-        self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(
-            btn_frame,
-            variable=self.progress_var,
-            mode='indeterminate',
-            length=200
+            controls_frame,
+            mode="indeterminate",
+            length=100
         )
         
-        # Results display
-        self.results_notebook = ttk.Notebook(rec_frame)
-        self.results_notebook.pack(fill=tk.BOTH, expand=True)
+        # Results notebook
+        results_notebook = ttk.Notebook(scrollable_frame)
+        results_notebook.pack(fill=tk.BOTH, expand=True)
         
         # Summary tab
-        summary_frame = ttk.Frame(self.results_notebook)
-        self.results_notebook.add(summary_frame, text="Summary")
+        summary_frame = ttk.Frame(results_notebook)
+        results_notebook.add(summary_frame, text=_("Summary"))
         
         self.summary_text = scrolledtext.ScrolledText(
-            summary_frame,
-            wrap=tk.WORD,
-            height=15,
-            width=50
+            summary_frame, 
+            wrap=tk.WORD, 
+            width=60, 
+            height=15
         )
         self.summary_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Method comparison tab
-        method_frame = ttk.Frame(self.results_notebook)
-        self.results_notebook.add(method_frame, text="Method Comparison")
+        method_frame = ttk.Frame(results_notebook)
+        results_notebook.add(method_frame, text=_("Method Comparison"))
         
         self.method_text = scrolledtext.ScrolledText(
-            method_frame,
-            wrap=tk.WORD,
-            height=15,
-            width=50
+            method_frame, 
+            wrap=tk.WORD, 
+            width=60, 
+            height=15
         )
         self.method_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Parameters tab
-        params_frame = ttk.Frame(self.results_notebook)
-        self.results_notebook.add(params_frame, text="Optimal Parameters")
+        # Optimal parameters tab
+        params_frame = ttk.Frame(results_notebook)
+        results_notebook.add(params_frame, text=_("Optimal Parameters"))
         
         self.params_text = scrolledtext.ScrolledText(
-            params_frame,
-            wrap=tk.WORD,
-            height=15,
-            width=50
+            params_frame, 
+            wrap=tk.WORD, 
+            width=60, 
+            height=15
         )
         self.params_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Initialize with help text
+        # Show initial help
         self.show_recommendation_help()
         
-    def create_action_buttons(self):
-        """Create action buttons at the bottom."""
-        actions_frame = ttk.Frame(self.frame)
-        actions_frame.pack(fill=tk.X, pady=(10, 0))
+    def create_search_params(self, parent):
+        """Create search parameters section."""
+        search_group = ttk.LabelFrame(parent, text=_("Search Parameters"), padding="5")
+        search_group.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Button(
-            actions_frame, 
-            text="Reset to Defaults", 
-            command=self.reset_to_defaults
-        ).pack(side=tk.LEFT, padx=(0, 5))
+        # Search radius
+        radius_frame = ttk.Frame(search_group)
+        radius_frame.pack(fill=tk.X, pady=(0, 5))
         
-        ttk.Button(
-            actions_frame, 
-            text="Load Preset", 
-            command=self.load_preset
-        ).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Label(radius_frame, text=_("Search Radius:")).pack(side=tk.LEFT)
         
-        ttk.Button(
-            actions_frame, 
-            text="Save Preset", 
-            command=self.save_preset
-        ).pack(side=tk.LEFT)
+        radius_entry = ttk.Entry(radius_frame, textvariable=self.search_radius_var, width=10)
+        radius_entry.pack(side=tk.LEFT, padx=(10, 5))
+        
+        # Point limits
+        limits_frame = ttk.LabelFrame(search_group, text=_("Point Limits"), padding="5")
+        limits_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        # Minimum points
+        min_frame = ttk.Frame(limits_frame)
+        min_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(min_frame, text=_("Minimum Points:")).pack(side=tk.LEFT)
+        min_entry = ttk.Entry(min_frame, textvariable=self.min_points_var, width=10)
+        min_entry.pack(side=tk.LEFT, padx=(10, 0))
+        
+        # Maximum points
+        max_frame = ttk.Frame(limits_frame)
+        max_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(max_frame, text=_("Maximum Points:")).pack(side=tk.LEFT)
+        max_entry = ttk.Entry(max_frame, textvariable=self.max_points_var, width=10)
+        max_entry.pack(side=tk.LEFT, padx=(10, 0))
+        
+        # Sectoral search
+        sector_group = ttk.LabelFrame(search_group, text=_("Sectoral Search"), padding="5")
+        sector_group.pack(fill=tk.X, pady=(5, 0))
+        
+        self.use_sectors_check = ttk.Checkbutton(
+            sector_group,
+            text=_("Use sectoral search"),
+            variable=self.use_sectors_var,
+            command=self.toggle_sectors
+        )
+        self.use_sectors_check.pack(anchor=tk.W, pady=(0, 5))
+        
+        self.sectors_frame = ttk.Frame(sector_group)
+        self.sectors_frame.pack(fill=tk.X)
+        
+        ttk.Label(self.sectors_frame, text=_("Number of sectors:")).pack(side=tk.LEFT)
+        self.sectors_entry = ttk.Entry(self.sectors_frame, textvariable=self.n_sectors_var, width=10)
+        self.sectors_entry.pack(side=tk.LEFT, padx=(10, 0))
+        
+        # Initially disable sectors controls
+        self.toggle_sectors()
+    
+    def create_grid_params(self, parent):
+        """Create grid parameters section."""
+        grid_group = ttk.LabelFrame(parent, text=_("Grid Parameters"), padding="5")
+        grid_group.pack(fill=tk.X, pady=(0, 10))
+        
+        # Cell size
+        cell_frame = ttk.Frame(grid_group)
+        cell_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(cell_frame, text=_("Cell Size:")).pack(side=tk.LEFT)
+        cell_entry = ttk.Entry(cell_frame, textvariable=self.cell_size_var, width=10)
+        cell_entry.pack(side=tk.LEFT, padx=(10, 5))
+        
+        # Buffer
+        buffer_frame = ttk.Frame(grid_group)
+        buffer_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(buffer_frame, text=_("Buffer:")).pack(side=tk.LEFT)
+        buffer_entry = ttk.Entry(buffer_frame, textvariable=self.buffer_var, width=10)
+        buffer_entry.pack(side=tk.LEFT, padx=(10, 5))
+        
+        ttk.Label(buffer_frame, text=_("(0.0-1.0 = %, >1.0 = meters)")).pack(side=tk.LEFT, padx=(5, 0))
+        
+        # Preview button
+        preview_btn = ttk.Button(
+            grid_group,
+            text=_("Preview Grid Info"),
+            command=self.preview_grid_info
+        )
+        preview_btn.pack(pady=(10, 0))
+        
+    def on_tab_changed(self, event):
+        """Handle tab change to update method variable."""
+        tab_index = self.notebook.index(self.notebook.select())
+        if tab_index == 0:  # IDW tab
+            self.method_var.set("IDW")
+        elif tab_index == 1:  # RBF tab
+            self.method_var.set("RBF")
+        elif tab_index == 2:  # Kriging tab
+            self.method_var.set("Kriging")
+        # Analysis tab doesn't change method
         
     def setup_bindings(self):
         """Setup event bindings."""
-        self.controller.bind_event("data_loaded", self.on_data_loaded)
+        pass
+    
+    def update_value_columns(self, columns):
+        """Update the list of available value columns."""
+        self.value_columns = columns
         
-        # Method change handler
-        self.method_var.trace('w', self.on_method_changed)
+        # Update all value column comboboxes across all tabs
+        # Update IDW tab combobox
+        if hasattr(self, 'value_column_combo'):
+            self.value_column_combo['values'] = columns
         
-    def on_method_changed(self, *args):
-        """Handle method selection change."""
+        # Update RBF tab combobox 
+        for child in self.frame.winfo_children():
+            if isinstance(child, ttk.Notebook):  # Found the notebook
+                for tab_id in child.tabs():
+                    tab = child.nametowidget(tab_id)
+                    self._update_comboboxes_in_frame(tab, columns)
+        
+        # Set default selection if none is set
+        if columns and not self.value_column_var.get():
+            self.value_column_var.set(columns[0])
+    
+    def _update_comboboxes_in_frame(self, frame, columns):
+        """Recursively update all value column comboboxes in a frame."""
+        for child in frame.winfo_children():
+            if isinstance(child, ttk.Combobox):
+                # Check if this is a value column combobox by checking its textvariable
+                try:
+                    if child.cget('textvariable') == str(self.value_column_var):
+                        child['values'] = columns
+                except tk.TclError:
+                    pass  # Not a combobox with textvariable
+            elif hasattr(child, 'winfo_children'):
+                # Recursively check child frames
+                self._update_comboboxes_in_frame(child, columns)
+    
+    def on_method_changed(self):
+        """Handle method selection changes."""
         method = self.method_var.get()
-        
-        # Enable/disable relevant tabs based on method selection
-        # Tab indices: 0=Method&Data, 1=IDW, 2=RBF, 3=Kriging, 4=Search, 5=Grid, 6=Recommendations
-        if method == "IDW":
-            self.notebook.tab(1, state="normal")   # IDW tab
-            self.notebook.tab(2, state="disabled") # RBF tab
-            self.notebook.tab(3, state="disabled") # Kriging tab
-        elif method == "RBF":
-            self.notebook.tab(1, state="disabled") # IDW tab
-            self.notebook.tab(2, state="normal")   # RBF tab
-            self.notebook.tab(3, state="disabled") # Kriging tab
-        elif method == "Kriging":
-            self.notebook.tab(1, state="disabled") # IDW tab
-            self.notebook.tab(2, state="disabled") # RBF tab
-            self.notebook.tab(3, state="normal")   # Kriging tab
-        
-    def on_data_loaded(self, data_info: Dict[str, Any]):
-        """
-        Handle data loaded event.
-        
-        Args:
-            data_info: Information about the loaded data
-        """
-        # Update value column options
-        value_columns = [col for col in data_info['columns'] if col not in ['X', 'Y']]
-        self.value_columns = value_columns
-        
-        self.value_column_combo['values'] = value_columns
-        if value_columns:
-            self.value_column_var.set(value_columns[0])
-            
-        # Update default search radius based on data extent
-        bounds = data_info['bounds']
-        range_x = bounds['max_x'] - bounds['min_x']
-        range_y = bounds['max_y'] - bounds['min_y']
-        avg_range = (range_x + range_y) / 2
-        
-        # Set search radius to ~10% of average range
-        suggested_radius = max(100, avg_range * 0.1)
-        self.search_radius_var.set(suggested_radius)
-        
-        # Set cell size to ~2% of average range
-        suggested_cell_size = max(10, avg_range * 0.02)
-        self.cell_size_var.set(suggested_cell_size)
-        
-    def update_power_label(self, value):
-        """Update power parameter label."""
-        self.power_label.config(text=f"{float(value):.1f}")
-        
-    def update_smoothing_label(self, value):
-        """Update smoothing parameter label."""
-        self.smoothing_label.config(text=f"{float(value):.2f}")
-        
-    def update_shape_label(self, value):
-        """Update RBF shape parameter label."""
-        self.shape_label.config(text=f"{float(value):.1f}")
-        
-    def update_reg_label(self, value):
-        """Update RBF regularization parameter label."""
-        val = float(value)
-        if val >= 1e-9:
-            self.reg_label.config(text=f"{val:.0e}")
-        else:
-            self.reg_label.config(text=f"{val:.1e}")
-        
+        # Add any method-specific logic here
+        print(f"Method changed to: {method}")
+    
     def toggle_sectors(self):
-        """Toggle sectoral search configuration."""
-        if self.use_sectors_var.get():
-            state = tk.NORMAL
-        else:
-            state = tk.DISABLED
-            
-        for widget in self.sectors_config_frame.winfo_children():
-            if isinstance(widget, ttk.Entry):
-                widget.config(state=state)
-                
-    def toggle_kriging_manual_params(self):
-        """Toggle Kriging manual parameter entry."""
-        if self.kriging_auto_fit_var.get():
-            state = tk.DISABLED
-        else:
-            state = tk.NORMAL
-            
-        # Enable/disable manual parameter entry widgets
-        self.nugget_entry.config(state=state)
-        self.sill_entry.config(state=state)
-        self.range_entry.config(state=state)
-                
-    def show_grid_preview(self):
-        """Show grid preview information."""
-        if not self.controller.has_data():
-            tk.messagebox.showwarning("Warning", "Please load data first")
-            return
-            
-        # Get current parameters
-        params = self.get_parameters()
+        """Toggle sectoral search controls."""
+        enabled = self.use_sectors_var.get()
+        state = tk.NORMAL if enabled else tk.DISABLED
         
-        # Get grid info from controller
+        if hasattr(self, 'sectors_entry'):
+            self.sectors_entry.config(state=state)
+    
+    def toggle_kriging_manual_params(self):
+        """Toggle manual kriging parameter controls."""
+        auto_fit = self.kriging_auto_fit_var.get()
+        # You can add logic here to enable/disable manual parameter controls
+        pass
+    
+    def preview_grid_info(self):
+        """Show grid information preview."""
         try:
-            # This would call the grid generator to get info
+            params = self.get_parameters()
+            
             info_text = f"""
-Grid Preview Information:
+Grid Preview Information
 
 Cell Size: {params['cell_size']} meters
 Buffer: {params['buffer']}
@@ -804,7 +777,111 @@ This would show:
             
         except Exception as e:
             tk.messagebox.showerror("Error", f"Failed to generate grid preview: {str(e)}")
-            
+    
+    def update_power_label(self, value):
+        """Update power parameter label."""
+        if hasattr(self, 'power_label'):
+            self.power_label.config(text=f"{float(value):.1f}")
+    
+    def update_smoothing_label(self, value):
+        """Update smoothing parameter label."""
+        if hasattr(self, 'smoothing_label'):
+            self.smoothing_label.config(text=f"{float(value):.3f}")
+    
+    def update_shape_label(self, value):
+        """Update RBF shape parameter label."""
+        if hasattr(self, 'rbf_shape_label'):
+            self.rbf_shape_label.config(text=f"{float(value):.1f}")
+    
+    def update_reg_label(self, value):
+        """Update RBF regularization parameter label."""
+        if hasattr(self, 'rbf_reg_label'):
+            self.rbf_reg_label.config(text=f"{float(value):.0e}")
+    
+    def create_action_buttons(self):
+        """Create action buttons at the bottom."""
+        button_frame = ttk.Frame(self.frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        # Reset button
+        reset_btn = ttk.Button(
+            button_frame,
+            text=_("Reset to Defaults"),
+            command=self.reset_to_defaults
+        )
+        reset_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Load preset button
+        load_btn = ttk.Button(
+            button_frame,
+            text=_("Load Preset"),
+            command=self.load_preset
+        )
+        load_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Save preset button
+        save_btn = ttk.Button(
+            button_frame,
+            text=_("Save Preset"),
+            command=self.save_preset
+        )
+        save_btn.pack(side=tk.LEFT)
+    
+    def show_recommendation_help(self):
+        """Show help text in recommendation tabs."""
+        from ...i18n import get_current_language
+        
+        # Check current language and use appropriate text
+        current_lang = get_current_language()
+        
+        if current_lang == 'ru':
+            help_text = """Добро пожаловать в систему рекомендаций!
+
+Эта система анализирует ваши данные и предоставляет:
+• Выбор оптимального метода интерполяции
+• Настройки параметров под ваши данные
+• Оценку ожидаемой производительности
+
+Для начала работы:
+1. Загрузите ваши данные
+2. Нажмите кнопку "Анализировать данные"
+3. Изучите рекомендации
+4. Нажмите "Применить рекомендации" для их использования
+
+Анализ учитывает:
+• Плотность и распределение данных
+• Пространственные паттерны и тренды
+• Изменчивость значений
+• Вычислительную эффективность"""
+        else:
+            help_text = """Welcome to the Recommendation System!
+
+This system analyzes your data and provides:
+• Optimal interpolation method selection
+• Customized parameter recommendations  
+• Performance expectations
+
+To get started:
+1. Load your data
+2. Click "Analyze Data" button
+3. Review recommendations
+4. Click "Apply Recommendations" to use them
+
+The analysis considers:
+• Data density and distribution
+• Spatial patterns and trends
+• Value variability
+• Computational efficiency"""
+        
+        self.summary_text.delete(1.0, tk.END)
+        self.summary_text.insert(1.0, help_text.strip())
+        
+        self.method_text.delete(1.0, tk.END)
+        self.method_text.insert(1.0, _("Method comparison will appear here after analysis."))
+        
+        self.params_text.delete(1.0, tk.END)
+        self.params_text.insert(1.0, _("Optimal parameters will appear here after analysis."))
+    
     def get_parameters(self) -> Dict[str, Any]:
         """
         Get current parameter values.
@@ -926,38 +1003,6 @@ This would show:
         """Save current parameters as preset."""
         tk.messagebox.showinfo("Info", "Save preset functionality - To be implemented")
     
-    def show_recommendation_help(self):
-        """Show help text in recommendation tabs."""
-        help_text = """
-Welcome to the Recommendation System!
-
-This system analyzes your data and provides:
-• Optimal interpolation method selection
-• Customized parameter recommendations  
-• Performance expectations
-
-To get started:
-1. Load your data
-2. Click "Analyze Data" button
-3. Review recommendations
-4. Click "Apply Recommendations" to use them
-
-The analysis considers:
-• Data density and distribution
-• Spatial patterns and trends
-• Value variability
-• Computational efficiency
-        """
-        
-        self.summary_text.delete(1.0, tk.END)
-        self.summary_text.insert(1.0, help_text.strip())
-        
-        self.method_text.delete(1.0, tk.END)
-        self.method_text.insert(1.0, "Method comparison will appear here after analysis.")
-        
-        self.params_text.delete(1.0, tk.END)
-        self.params_text.insert(1.0, "Optimal parameters will appear here after analysis.")
-    
     def analyze_data(self):
         """Run recommendation analysis on loaded data."""
         if not self.controller.has_data():
@@ -976,7 +1021,7 @@ The analysis considers:
         
         # Run analysis in background
         self.frame.after(100, self._run_analysis)
-    
+        
     def _run_analysis(self):
         """Run the actual analysis (called after UI update)."""
         try:
@@ -1065,8 +1110,40 @@ The analysis considers:
     
     def _show_mock_recommendations(self):
         """Show mock recommendations for demo mode."""
-        # Mock summary
-        summary = """
+        from ...i18n import get_current_language
+        
+        # Check current language and use appropriate text
+        current_lang = get_current_language()
+        
+        if current_lang == 'ru':
+            # Russian version
+            summary = """
+**Анализ данных - сводка**
+- Набор данных содержит 150 точек  
+- Пространственная плотность: 0.245 точек на единицу площади
+- Равномерность распределения: 0.65 (умеренно равномерное)
+- Значительные пространственные тренды не обнаружены
+
+**Рекомендуемый метод: ОВР (IDW)**
+- Оценка пригодности: 85.0/100
+- Ключевые причины:
+  • Плотные, равномерно распределенные данные
+  • Отсутствие глобальных трендов - достаточно локальной интерполяции
+  • ОВР вычислительно эффективен
+
+**Оптимизированные параметры**
+- радиус_поиска: 850.0 (средний радиус для сбалансированного покрытия)
+- степень: 2.0 (стандартная степень балансирует локальное и региональное влияние)
+- макс_точек: 12 (баланс точности и скорости)
+
+**Ожидаемая производительность**
+- Обработка будет быстрой
+- Хорошая точность для локальных вариаций
+- Подходит для характеристик ваших данных
+            """
+        else:
+            # English version
+            summary = """
 **Data Analysis Summary**
 - Dataset contains 150 points
 - Spatial density: 0.245 points per unit area
@@ -1089,12 +1166,50 @@ The analysis considers:
 - Processing will be fast
 - Good accuracy for local variations
 - Suitable for your data characteristics
-        """
+            """
         self.summary_text.delete(1.0, tk.END)
         self.summary_text.insert(1.0, summary.strip())
         
         # Mock method comparison
-        methods = """
+        if current_lang == 'ru':
+            methods = """
+Сравнение методов
+==================================================
+
+1. ОВР (IDW)
+   Оценка: 85.0/100
+   Преимущества:
+   • Простой и интуитивный метод
+   • Быстрые вычисления
+   • Хорошо работает с плотными, регулярными данными
+   Недостатки:
+   • Не может моделировать глобальные тренды
+   • Чувствителен к выбросам
+
+2. Обычный кригинг
+   Оценка: 65.0/100
+   Преимущества:
+   • Предоставляет оценки неопределенности
+   • Оптимальный линейный несмещенный оценщик
+   • Хорошо обрабатывает нерегулярную выборку
+   Недостатки:
+   • Вычислительно интенсивен
+   • Требует моделирования вариограммы
+   • Нужно больше точек данных
+
+3. Радиальные базисные функции
+   Оценка: 60.0/100
+   Преимущества:
+   • Создает гладкие поверхности
+   • Точная интерполяция в точках данных
+   • Гибкие базисные функции
+   Недостатки:
+   • Может создавать нереалистичные осцилляции
+   • Чувствителен к выбору параметров
+   • Медленный с большим количеством точек
+            """
+        else:
+            methods = """
 Method Comparison
 ==================================================
 
@@ -1129,12 +1244,41 @@ Method Comparison
    • Can create unrealistic oscillations
    • Sensitive to parameter choice
    • Slow with many points
-        """
+            """
         self.method_text.delete(1.0, tk.END)
         self.method_text.insert(1.0, methods.strip())
         
         # Mock parameters
-        params = """
+        if current_lang == 'ru':
+            params = """
+Оптимальные параметры
+==================================================
+
+Рекомендуемый метод: ОВР
+
+радиус_поиска: 850.0
+  → Средний радиус (8.5x среднее расстояние до ближайшего соседа) для сбалансированного покрытия
+
+степень: 2.0
+  → Стандартная степень (p=2) балансирует локальное и региональное влияние
+
+мин_точек: 3
+  → Минимум 3 точки обеспечивает стабильную интерполяцию
+
+макс_точек: 12
+  → Максимум 12 точек балансирует точность и скорость
+
+использовать_секторы: Нет
+  → Данные достаточно равномерны, секторы не нужны
+
+размер_ячейки: 50.0
+  → Подходит для плотности данных
+
+буфер: 0.1
+  → 10% буфер расширяет сетку за пределы данных
+            """
+        else:
+            params = """
 Optimal Parameters
 ==================================================
 
@@ -1160,7 +1304,7 @@ cell_size: 50.0
 
 buffer: 0.1
   → 10% buffer extends grid beyond data bounds
-        """
+            """
         self.params_text.delete(1.0, tk.END)
         self.params_text.insert(1.0, params.strip())
         
@@ -1194,7 +1338,29 @@ buffer: 0.1
         
         # Show confirmation
         tk.messagebox.showinfo(
-            "Success", 
-            "Recommended parameters have been applied.\n"
-            "You can now run the interpolation."
+            _("Success"), 
+            _("Recommended parameters have been applied.\n"
+            "You can now run the interpolation.")
         )
+    
+    def update_language(self):
+        """Update all text elements with new translations."""
+        try:
+            # Update main frame title
+            self.frame.config(text=_("Parameters"))
+            
+            # Update notebook tab titles
+            if hasattr(self, 'notebook'):
+                for i, tab_key in enumerate(['IDW', 'RBF', 'Kriging', 'Analysis and Recommendations']):
+                    try:
+                        self.notebook.tab(i, text=_(tab_key))
+                    except tk.TclError:
+                        # Tab doesn't exist, skip
+                        pass
+            
+            print("ParametersPanel language updated successfully")
+            
+        except Exception as e:
+            print(f"Error updating ParametersPanel language: {e}")
+            import traceback
+            traceback.print_exc()

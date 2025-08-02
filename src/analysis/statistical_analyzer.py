@@ -10,7 +10,10 @@ import pandas as pd
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 from scipy import stats
+from scipy.stats import boxcox, yeojohnson
 import warnings
+import matplotlib.pyplot as plt
+from typing import Union
 
 
 @dataclass
@@ -72,6 +75,9 @@ class StatisticalAnalyzer:
         variability = self._variability_measures(values)
         extremes = self._extreme_value_analysis(values)
         confidence = self._confidence_intervals(values)
+        
+        # Store raw values for enhanced analysis
+        descriptive['_raw_values'] = values.tolist()
         
         return StatisticalResults(
             descriptive_stats=descriptive,
@@ -352,6 +358,370 @@ class StatisticalAnalyzer:
         gini = (2 * np.sum(index * sorted_values)) / (n * np.sum(sorted_values)) - (n + 1) / n
         
         return float(gini)
+    
+    def grubbs_test(self, values: np.ndarray, alpha: float = 0.05) -> Dict[str, Any]:
+        """Perform Grubbs test for outlier detection.
+        
+        Args:
+            values: Data values
+            alpha: Significance level (default 0.05)
+            
+        Returns:
+            Dictionary with test results and outliers
+        """
+        n = len(values)
+        if n < 3:
+            return {'error': 'Insufficient data for Grubbs test (need n >= 3)'}
+        
+        results = {
+            'outliers': [],
+            'indices': [],
+            'test_statistics': [],
+            'critical_values': [],
+            'n_iterations': 0
+        }
+        
+        # Copy values to avoid modifying original
+        test_values = values.copy()
+        original_indices = np.arange(len(values))
+        
+        while len(test_values) > 2:
+            n = len(test_values)
+            mean_val = np.mean(test_values)
+            std_val = np.std(test_values, ddof=1)
+            
+            if std_val == 0:
+                break
+            
+            # Calculate test statistic for each value
+            z_scores = np.abs(test_values - mean_val) / std_val
+            max_idx = np.argmax(z_scores)
+            G = z_scores[max_idx]
+            
+            # Critical value from t-distribution
+            t_val = stats.t.ppf(1 - alpha/(2*n), n-2)
+            G_critical = ((n-1) / np.sqrt(n)) * np.sqrt(t_val**2 / (n-2 + t_val**2))
+            
+            if G > G_critical:
+                # Outlier detected
+                outlier_val = test_values[max_idx]
+                outlier_original_idx = original_indices[max_idx]
+                
+                results['outliers'].append(float(outlier_val))
+                results['indices'].append(int(outlier_original_idx))
+                results['test_statistics'].append(float(G))
+                results['critical_values'].append(float(G_critical))
+                
+                # Remove outlier and continue
+                test_values = np.delete(test_values, max_idx)
+                original_indices = np.delete(original_indices, max_idx)
+                results['n_iterations'] += 1
+            else:
+                # No more outliers
+                break
+        
+        results['n_outliers'] = len(results['outliers'])
+        results['outlier_percentage'] = float(results['n_outliers'] / len(values) * 100)
+        
+        return results
+    
+    def transform_data(self, values: np.ndarray, method: str = 'auto') -> Dict[str, Any]:
+        """Apply data transformation to improve normality.
+        
+        Args:
+            values: Data values
+            method: Transformation method ('auto', 'log', 'sqrt', 'boxcox', 'yeojohnson')
+            
+        Returns:
+            Dictionary with transformed data and transformation parameters
+        """
+        results = {
+            'method': method,
+            'transformed_values': None,
+            'parameters': {},
+            'normality_before': {},
+            'normality_after': {},
+            'success': False
+        }
+        
+        # Check normality before transformation
+        if len(values) >= 3:
+            try:
+                stat_before, p_before = stats.shapiro(values)
+                results['normality_before'] = {
+                    'shapiro_statistic': float(stat_before),
+                    'p_value': float(p_before),
+                    'is_normal': p_before > self.alpha
+                }
+            except:
+                pass
+        
+        # Apply transformation
+        try:
+            if method == 'auto':
+                # Try different methods and choose best
+                methods_to_try = ['none', 'log', 'sqrt', 'yeojohnson']
+                if np.all(values > 0):
+                    methods_to_try.append('boxcox')
+                
+                best_p_value = 0
+                best_method = 'none'
+                best_transformed = values
+                best_params = {}
+                
+                for m in methods_to_try:
+                    try:
+                        if m == 'none':
+                            transformed = values
+                            params = {}
+                        elif m == 'log':
+                            if np.all(values > 0):
+                                transformed = np.log(values)
+                                params = {}
+                            else:
+                                continue
+                        elif m == 'sqrt':
+                            if np.all(values >= 0):
+                                transformed = np.sqrt(values)
+                                params = {}
+                            else:
+                                continue
+                        elif m == 'boxcox':
+                            if np.all(values > 0):
+                                transformed, lambda_param = boxcox(values)
+                                params = {'lambda': float(lambda_param)}
+                            else:
+                                continue
+                        elif m == 'yeojohnson':
+                            transformed, lambda_param = yeojohnson(values)
+                            params = {'lambda': float(lambda_param)}
+                        
+                        # Test normality
+                        if len(transformed) >= 3:
+                            stat, p_val = stats.shapiro(transformed)
+                            if p_val > best_p_value:
+                                best_p_value = p_val
+                                best_method = m
+                                best_transformed = transformed
+                                best_params = params
+                    except:
+                        continue
+                
+                results['method'] = best_method
+                results['transformed_values'] = best_transformed
+                results['parameters'] = best_params
+                
+            elif method == 'log':
+                if np.all(values > 0):
+                    results['transformed_values'] = np.log(values)
+                else:
+                    # Log(x + c) transformation for non-positive values
+                    c = abs(np.min(values)) + 1
+                    results['transformed_values'] = np.log(values + c)
+                    results['parameters'] = {'shift': float(c)}
+                    
+            elif method == 'sqrt':
+                if np.all(values >= 0):
+                    results['transformed_values'] = np.sqrt(values)
+                else:
+                    # Shift to make all values non-negative
+                    c = abs(np.min(values))
+                    results['transformed_values'] = np.sqrt(values + c)
+                    results['parameters'] = {'shift': float(c)}
+                    
+            elif method == 'boxcox':
+                if np.all(values > 0):
+                    transformed, lambda_param = boxcox(values)
+                    results['transformed_values'] = transformed
+                    results['parameters'] = {'lambda': float(lambda_param)}
+                else:
+                    raise ValueError("Box-Cox requires all positive values")
+                    
+            elif method == 'yeojohnson':
+                transformed, lambda_param = yeojohnson(values)
+                results['transformed_values'] = transformed
+                results['parameters'] = {'lambda': float(lambda_param)}
+            
+            results['success'] = True
+            
+        except Exception as e:
+            results['error'] = str(e)
+            results['transformed_values'] = values  # Return original if transformation fails
+        
+        # Check normality after transformation
+        if results['transformed_values'] is not None and len(results['transformed_values']) >= 3:
+            try:
+                stat_after, p_after = stats.shapiro(results['transformed_values'])
+                results['normality_after'] = {
+                    'shapiro_statistic': float(stat_after),
+                    'p_value': float(p_after),
+                    'is_normal': p_after > self.alpha
+                }
+            except:
+                pass
+        
+        return results
+    
+    def inverse_transform(self, transformed_values: np.ndarray, method: str, parameters: Dict[str, Any]) -> np.ndarray:
+        """Apply inverse transformation to get back original scale.
+        
+        Args:
+            transformed_values: Transformed data values
+            method: Transformation method used
+            parameters: Transformation parameters
+            
+        Returns:
+            Original scale values
+        """
+        try:
+            if method == 'none':
+                return transformed_values
+                
+            elif method == 'log':
+                values = np.exp(transformed_values)
+                if 'shift' in parameters:
+                    values = values - parameters['shift']
+                return values
+                
+            elif method == 'sqrt':
+                values = transformed_values ** 2
+                if 'shift' in parameters:
+                    values = values - parameters['shift']
+                return values
+                
+            elif method == 'boxcox':
+                lambda_param = parameters.get('lambda', 0)
+                if lambda_param == 0:
+                    return np.exp(transformed_values)
+                else:
+                    return (transformed_values * lambda_param + 1) ** (1 / lambda_param)
+                    
+            elif method == 'yeojohnson':
+                # Inverse Yeo-Johnson transformation
+                lambda_param = parameters.get('lambda', 0)
+                
+                # Handle the inverse transformation based on lambda and value sign
+                result = np.zeros_like(transformed_values)
+                
+                for i, y in enumerate(transformed_values):
+                    if lambda_param != 0:
+                        if y >= 0:
+                            result[i] = (y * lambda_param + 1) ** (1 / lambda_param) - 1
+                        else:
+                            result[i] = 1 - ((-y) * (2 - lambda_param) + 1) ** (1 / (2 - lambda_param))
+                    else:
+                        if y >= 0:
+                            result[i] = np.exp(y) - 1
+                        else:
+                            result[i] = 1 - np.exp(-y)
+                
+                return result
+                    
+        except Exception:
+            # Return transformed values if inverse fails
+            return transformed_values
+    
+    def plot_qq(self, values: np.ndarray, ax=None, title: str = "Q-Q Plot"):
+        """Create Q-Q plot for normality assessment.
+        
+        Args:
+            values: Data values
+            ax: Matplotlib axis (optional)
+            title: Plot title
+        """
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(8, 6))
+        
+        stats.probplot(values, dist="norm", plot=ax)
+        ax.set_title(title)
+        ax.grid(True, alpha=0.3)
+        
+        return ax
+    
+    def plot_boxplot(self, values: np.ndarray, ax=None, title: str = "Box Plot", 
+                     show_outliers: bool = True, outlier_method: str = 'iqr'):
+        """Create box plot with outlier detection.
+        
+        Args:
+            values: Data values  
+            ax: Matplotlib axis (optional)
+            title: Plot title
+            show_outliers: Whether to highlight outliers
+            outlier_method: Method for outlier detection ('iqr' or 'grubbs')
+        """
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(8, 6))
+        
+        # Create box plot
+        bp = ax.boxplot(values, vert=True, patch_artist=True)
+        
+        # Customize box plot
+        bp['boxes'][0].set_facecolor('lightblue')
+        bp['medians'][0].set_color('red')
+        bp['medians'][0].set_linewidth(2)
+        
+        # Add outliers if requested
+        if show_outliers:
+            if outlier_method == 'grubbs':
+                grubbs_result = self.grubbs_test(values)
+                outlier_indices = grubbs_result.get('indices', [])
+                if outlier_indices:
+                    outlier_values = values[outlier_indices]
+                    ax.scatter(np.ones(len(outlier_values)), outlier_values, 
+                              color='red', s=100, marker='o', label='Grubbs outliers')
+            
+        ax.set_title(title)
+        ax.set_ylabel('Value')
+        ax.grid(True, alpha=0.3)
+        
+        if show_outliers and outlier_method == 'grubbs':
+            ax.legend()
+        
+        return ax
+    
+    def generate_enhanced_report(self, results: StatisticalResults, value_col: str,
+                               include_outliers: bool = True,
+                               include_transformation: bool = True) -> str:
+        """Generate enhanced statistical analysis report.
+        
+        Args:
+            results: Statistical analysis results
+            value_col: Name of analyzed column
+            include_outliers: Include outlier analysis
+            include_transformation: Include transformation analysis
+            
+        Returns:
+            Formatted report string
+        """
+        report = self.generate_summary_report(results, value_col)
+        
+        if include_outliers:
+            # Add Grubbs test results
+            values = results.descriptive_stats.get('_raw_values', [])
+            if len(values) > 0:
+                grubbs_result = self.grubbs_test(np.array(values))
+                if grubbs_result.get('n_outliers', 0) > 0:
+                    report += f"""\nGRUBBS TEST OUTLIERS:
+• Number of outliers: {grubbs_result['n_outliers']}
+• Outlier values: {', '.join(f"{v:.3f}" for v in grubbs_result['outliers'][:5])}
+• Outlier percentage: {grubbs_result['outlier_percentage']:.1f}%
+"""
+        
+        if include_transformation:
+            # Add transformation recommendation
+            values = results.descriptive_stats.get('_raw_values', [])
+            if len(values) > 0:
+                transform_result = self.transform_data(np.array(values))
+                if transform_result['success']:
+                    report += f"""\nDATA TRANSFORMATION:
+• Recommended method: {transform_result['method']}
+• Normality before: p={transform_result['normality_before'].get('p_value', 0):.4f}
+• Normality after: p={transform_result['normality_after'].get('p_value', 0):.4f}
+"""
+                    if transform_result['parameters']:
+                        report += f"• Parameters: {transform_result['parameters']}\n"
+        
+        return report
     
     def generate_summary_report(self, results: StatisticalResults, value_col: str) -> str:
         """Generate a human-readable summary report."""

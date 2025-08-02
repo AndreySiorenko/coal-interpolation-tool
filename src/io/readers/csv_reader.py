@@ -192,6 +192,13 @@ class CSVReader(BaseReader):
                 
             self.data = pd.read_csv(**read_kwargs)
             
+            # Validate loaded data
+            if self.data is None:
+                raise DataReadError("Failed to read CSV file - no data returned")
+            
+            if len(self.data) == 0:
+                raise DataReadError("CSV file contains no data rows")
+            
             # Clean column names
             self.data.columns = self.data.columns.str.strip()
             
@@ -285,7 +292,7 @@ class CSVReader(BaseReader):
         Returns:
             Dictionary with validation results
         """
-        if self.data is None:
+        if self.data is None or len(self.data) == 0:
             raise ValidationError("No data loaded")
             
         results = {

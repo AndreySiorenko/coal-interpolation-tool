@@ -8,6 +8,9 @@ import os
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
+# Import i18n system
+from ...i18n import _, add_language_change_listener, remove_language_change_listener
+
 
 class DataLoaderDialog:
     """
@@ -35,14 +38,24 @@ class DataLoaderDialog:
         self.current_file_path = None
         self.preview_data = None
         
+        # Store UI elements for language updates
+        self.ui_elements = {}
+        
         # Create modal dialog
         self.dialog = tk.Toplevel(parent)
         self.setup_dialog()
         self.create_widgets()
         
+        # Initialize navigation button states
+        self.update_navigation_buttons()
+        
+        # Register for language change events
+        from ...i18n import add_language_change_listener
+        add_language_change_listener(self.update_language)
+        
     def setup_dialog(self):
         """Setup dialog window properties."""
-        self.dialog.title("Load Data File")
+        self.dialog.title(_("Load Data File"))
         self.dialog.geometry("800x600")
         self.dialog.transient(self.parent)
         self.dialog.grab_set()
@@ -94,13 +107,13 @@ class DataLoaderDialog:
         
         ttk.Button(
             buttons_frame,
-            text="Cancel",
+            text=_("Cancel"),
             command=self.cancel
         ).pack(side=tk.RIGHT, padx=(5, 0))
         
         ttk.Button(
             buttons_frame,
-            text="Load Data",
+            text=_("Load Data"),
             command=self.load_data,
             state=tk.DISABLED
         ).pack(side=tk.RIGHT)
@@ -109,14 +122,14 @@ class DataLoaderDialog:
         
         ttk.Button(
             buttons_frame,
-            text="Previous",
+            text=_("Previous"),
             command=self.previous_step,
             state=tk.DISABLED
         ).pack(side=tk.LEFT)
         
         ttk.Button(
             buttons_frame,
-            text="Next",
+            text=_("Next"),
             command=self.next_step,
             state=tk.DISABLED
         ).pack(side=tk.LEFT, padx=(5, 0))
@@ -127,28 +140,28 @@ class DataLoaderDialog:
     def create_file_selection_tab(self):
         """Create file selection tab."""
         file_frame = ttk.Frame(self.notebook)
-        self.notebook.add(file_frame, text="1. Select File")
+        self.notebook.add(file_frame, text=_("1. Select File"))
         
         # File selection section
-        select_frame = ttk.LabelFrame(file_frame, text="File Selection", padding="10")
+        select_frame = ttk.LabelFrame(file_frame, text=_("File Selection"), padding="10")
         select_frame.pack(fill=tk.X, padx=10, pady=10)
         
         # Current file display
-        ttk.Label(select_frame, text="Selected File:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(select_frame, text=_("Selected File:")).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
         
-        self.file_path_var = tk.StringVar(value="No file selected")
+        self.file_path_var = tk.StringVar(value=_("No file selected"))
         file_label = ttk.Label(select_frame, textvariable=self.file_path_var, relief=tk.SUNKEN, padding="5")
         file_label.grid(row=1, column=0, columnspan=2, sticky=tk.W+tk.E, pady=(0, 10))
         
         # Browse button
         ttk.Button(
             select_frame,
-            text="Browse...",
+            text=_("Browse..."),
             command=self.browse_file
         ).grid(row=2, column=0, sticky=tk.W)
         
         # Recent files
-        recent_frame = ttk.LabelFrame(file_frame, text="Recent Files", padding="10")
+        recent_frame = ttk.LabelFrame(file_frame, text=_("Recent Files"), padding="10")
         recent_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         
         # Recent files listbox
@@ -170,10 +183,10 @@ class DataLoaderDialog:
     def create_data_preview_tab(self):
         """Create data preview tab."""
         preview_frame = ttk.Frame(self.notebook)
-        self.notebook.add(preview_frame, text="2. Preview Data")
+        self.notebook.add(preview_frame, text=_("2. Preview Data"))
         
         # File info section
-        info_frame = ttk.LabelFrame(preview_frame, text="File Information", padding="10")
+        info_frame = ttk.LabelFrame(preview_frame, text=_("File Information"), padding="10")
         info_frame.pack(fill=tk.X, padx=10, pady=10)
         
         # Info labels
@@ -182,20 +195,20 @@ class DataLoaderDialog:
         self.rows_count_var = tk.StringVar(value="-")
         self.cols_count_var = tk.StringVar(value="-")
         
-        ttk.Label(info_frame, text="File Size:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        ttk.Label(info_frame, text=_("File Size:")).grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         ttk.Label(info_frame, textvariable=self.file_size_var).grid(row=0, column=1, sticky=tk.W)
         
-        ttk.Label(info_frame, text="File Type:").grid(row=0, column=2, sticky=tk.W, padx=(20, 10))
+        ttk.Label(info_frame, text=_("File Type:")).grid(row=0, column=2, sticky=tk.W, padx=(20, 10))
         ttk.Label(info_frame, textvariable=self.file_type_var).grid(row=0, column=3, sticky=tk.W)
         
-        ttk.Label(info_frame, text="Rows:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10))
+        ttk.Label(info_frame, text=_("Rows:")).grid(row=1, column=0, sticky=tk.W, padx=(0, 10))
         ttk.Label(info_frame, textvariable=self.rows_count_var).grid(row=1, column=1, sticky=tk.W)
         
-        ttk.Label(info_frame, text="Columns:").grid(row=1, column=2, sticky=tk.W, padx=(20, 10))
+        ttk.Label(info_frame, text=_("Columns:")).grid(row=1, column=2, sticky=tk.W, padx=(20, 10))
         ttk.Label(info_frame, textvariable=self.cols_count_var).grid(row=1, column=3, sticky=tk.W)
         
         # Data preview section
-        preview_data_frame = ttk.LabelFrame(preview_frame, text="Data Preview (First 10 rows)", padding="10")
+        preview_data_frame = ttk.LabelFrame(preview_frame, text=_("Data Preview (First 10 rows)"), padding="10")
         preview_data_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         
         # Create treeview for data preview
@@ -217,39 +230,41 @@ class DataLoaderDialog:
     def create_column_mapping_tab(self):
         """Create column mapping tab."""
         mapping_frame = ttk.Frame(self.notebook)
-        self.notebook.add(mapping_frame, text="3. Map Columns")
+        self.notebook.add(mapping_frame, text=_("3. Map Columns"))
         
         # Instructions
         instructions = ttk.Label(
             mapping_frame,
-            text="Map data columns to required coordinate and value fields:",
+            text=_("Map data columns to required coordinate and value fields:"),
             font=("TkDefaultFont", 10, "bold")
         )
         instructions.pack(anchor=tk.W, padx=10, pady=10)
         
         # Mapping section
-        map_frame = ttk.LabelFrame(mapping_frame, text="Column Mapping", padding="10")
+        map_frame = ttk.LabelFrame(mapping_frame, text=_("Column Mapping"), padding="10")
         map_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
         
         # X coordinate mapping
-        ttk.Label(map_frame, text="X Coordinate:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(map_frame, text=_("X Coordinate:")).grid(row=0, column=0, sticky=tk.W, padx=(0, 10), pady=5)
         self.x_column_var = tk.StringVar()
         self.x_column_combo = ttk.Combobox(map_frame, textvariable=self.x_column_var, state="readonly", width=20)
         self.x_column_combo.grid(row=0, column=1, sticky=tk.W, pady=5)
+        self.x_column_combo.bind('<<ComboboxSelected>>', lambda e: self.update_navigation_buttons())
         
         # Y coordinate mapping  
-        ttk.Label(map_frame, text="Y Coordinate:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(map_frame, text=_("Y Coordinate:")).grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=5)
         self.y_column_var = tk.StringVar()
         self.y_column_combo = ttk.Combobox(map_frame, textvariable=self.y_column_var, state="readonly", width=20)
         self.y_column_combo.grid(row=1, column=1, sticky=tk.W, pady=5)
+        self.y_column_combo.bind('<<ComboboxSelected>>', lambda e: self.update_navigation_buttons())
         
         # Value columns section
-        value_frame = ttk.LabelFrame(mapping_frame, text="Value Columns", padding="10")
+        value_frame = ttk.LabelFrame(mapping_frame, text=_("Value Columns"), padding="10")
         value_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         
         # Available columns
-        ttk.Label(value_frame, text="Available Columns:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
-        ttk.Label(value_frame, text="Selected for Interpolation:").grid(row=0, column=2, sticky=tk.W, pady=(0, 5))
+        ttk.Label(value_frame, text=_("Available Columns:")).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(value_frame, text=_("Selected for Interpolation:")).grid(row=0, column=2, sticky=tk.W, pady=(0, 5))
         
         # Listboxes for column selection
         self.available_listbox = tk.Listbox(value_frame, height=8, selectmode=tk.MULTIPLE)
@@ -262,10 +277,10 @@ class DataLoaderDialog:
         buttons_frame = ttk.Frame(value_frame)
         buttons_frame.grid(row=1, column=1, padx=5)
         
-        ttk.Button(buttons_frame, text="Add →", command=self.add_value_column).pack(pady=2)
-        ttk.Button(buttons_frame, text="← Remove", command=self.remove_value_column).pack(pady=2)
-        ttk.Button(buttons_frame, text="Add All →", command=self.add_all_value_columns).pack(pady=2)
-        ttk.Button(buttons_frame, text="← Remove All", command=self.remove_all_value_columns).pack(pady=2)
+        ttk.Button(buttons_frame, text=_("Add →"), command=self.add_value_column).pack(pady=2)
+        ttk.Button(buttons_frame, text=_("← Remove"), command=self.remove_value_column).pack(pady=2)
+        ttk.Button(buttons_frame, text=_("Add All →"), command=self.add_all_value_columns).pack(pady=2)
+        ttk.Button(buttons_frame, text=_("← Remove All"), command=self.remove_all_value_columns).pack(pady=2)
         
         value_frame.grid_rowconfigure(1, weight=1)
         value_frame.grid_columnconfigure(0, weight=1)
@@ -274,14 +289,14 @@ class DataLoaderDialog:
     def create_import_settings_tab(self):
         """Create import settings tab."""
         settings_frame = ttk.Frame(self.notebook)
-        self.notebook.add(settings_frame, text="4. Settings")
+        self.notebook.add(settings_frame, text=_("4. Settings"))
         
         # CSV settings
-        csv_frame = ttk.LabelFrame(settings_frame, text="CSV Settings", padding="10")
+        csv_frame = ttk.LabelFrame(settings_frame, text=_("CSV Settings"), padding="10")
         csv_frame.pack(fill=tk.X, padx=10, pady=10)
         
         # Delimiter
-        ttk.Label(csv_frame, text="Delimiter:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        ttk.Label(csv_frame, text=_("Delimiter:")).grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         self.delimiter_var = tk.StringVar(value=",")
         delimiter_combo = ttk.Combobox(
             csv_frame, 
@@ -292,13 +307,13 @@ class DataLoaderDialog:
         delimiter_combo.grid(row=0, column=1, sticky=tk.W)
         
         # Header row
-        ttk.Label(csv_frame, text="Header Row:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
+        ttk.Label(csv_frame, text=_("Header Row:")).grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
         self.header_row_var = tk.IntVar(value=0)
         header_spin = ttk.Spinbox(csv_frame, from_=0, to=10, textvariable=self.header_row_var, width=10)
         header_spin.grid(row=1, column=1, sticky=tk.W, pady=(10, 0))
         
         # Encoding
-        ttk.Label(csv_frame, text="Encoding:").grid(row=2, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
+        ttk.Label(csv_frame, text=_("Encoding:")).grid(row=2, column=0, sticky=tk.W, padx=(0, 10), pady=(10, 0))
         self.encoding_var = tk.StringVar(value="utf-8")
         encoding_combo = ttk.Combobox(
             csv_frame,
@@ -309,32 +324,32 @@ class DataLoaderDialog:
         encoding_combo.grid(row=2, column=1, sticky=tk.W, pady=(10, 0))
         
         # Data validation settings
-        validation_frame = ttk.LabelFrame(settings_frame, text="Data Validation", padding="10")
+        validation_frame = ttk.LabelFrame(settings_frame, text=_("Data Validation"), padding="10")
         validation_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
         
         self.skip_invalid_rows_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(
             validation_frame,
-            text="Skip rows with invalid coordinates",
+            text=_("Skip rows with invalid coordinates"),
             variable=self.skip_invalid_rows_var
         ).pack(anchor=tk.W)
         
         self.fill_missing_values_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             validation_frame,
-            text="Fill missing values with interpolation",
+            text=_("Fill missing values with interpolation"),
             variable=self.fill_missing_values_var
         ).pack(anchor=tk.W)
         
         self.remove_duplicates_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(
             validation_frame,
-            text="Remove duplicate coordinates",
+            text=_("Remove duplicate coordinates"),
             variable=self.remove_duplicates_var
         ).pack(anchor=tk.W)
         
         # Summary section
-        summary_frame = ttk.LabelFrame(settings_frame, text="Import Summary", padding="10")
+        summary_frame = ttk.LabelFrame(settings_frame, text=_("Import Summary"), padding="10")
         summary_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         
         self.summary_text = tk.Text(summary_frame, height=6, wrap=tk.WORD, state=tk.DISABLED)
@@ -347,12 +362,12 @@ class DataLoaderDialog:
     def browse_file(self):
         """Open file browser dialog."""
         file_path = filedialog.askopenfilename(
-            title="Select Data File",
+            title=_("Select Data File"),
             filetypes=[
-                ("CSV files", "*.csv"),
-                ("Excel files", "*.xlsx *.xls"),
-                ("Text files", "*.txt"),
-                ("All files", "*.*")
+                (_("CSV files"), "*.csv"),
+                (_("Excel files"), "*.xlsx *.xls"),
+                (_("Text files"), "*.txt"),
+                (_("All files"), "*.*")
             ]
         )
         
@@ -374,14 +389,14 @@ class DataLoaderDialog:
             # Update column mappings
             self.update_column_mappings()
             
-            # Enable next button
-            self.next_button.config(state=tk.NORMAL)
+            # Update navigation buttons
+            self.update_navigation_buttons()
             
             # Add to recent files
             self.add_to_recent_files(file_path)
             
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to load file: {str(e)}")
+            messagebox.showerror(_("Error"), f"{_('Failed to load file')}: {str(e)}")
             
     def update_file_info(self):
         """Update file information display."""
@@ -411,27 +426,78 @@ class DataLoaderDialog:
             # For now, assume CSV format
             import pandas as pd
             
+            # Prepare read parameters
+            read_params = {
+                'filepath_or_buffer': self.current_file_path,
+                'nrows': 10,
+                'delimiter': self.delimiter_var.get(),
+                'encoding': self.encoding_var.get()
+            }
+            
+            # Handle header parameter
+            header_row = self.header_row_var.get()
+            if header_row is not None and header_row > 0:
+                read_params['header'] = header_row
+            else:
+                read_params['header'] = 0
+            
             # Read first few rows for preview
-            preview_df = pd.read_csv(
-                self.current_file_path,
-                nrows=10,
-                delimiter=self.delimiter_var.get(),
-                encoding=self.encoding_var.get(),
-                header=self.header_row_var.get() if self.header_row_var.get() > 0 else 0
-            )
+            preview_df = pd.read_csv(**read_params)
+            
+            # Validate the result
+            if preview_df is None:
+                raise ValueError("Failed to read CSV file - no data returned")
+            
+            if len(preview_df) == 0:
+                raise ValueError("CSV file appears to be empty")
             
             self.preview_data = preview_df
             
-            # Update counts
-            full_df = pd.read_csv(self.current_file_path, delimiter=self.delimiter_var.get())
-            self.rows_count_var.set(f"{len(full_df):,}")
-            self.cols_count_var.set(str(len(full_df.columns)))
+            # Get full file info (just count, don't load all data)
+            try:
+                # Count lines efficiently
+                with open(self.current_file_path, 'r', encoding=self.encoding_var.get()) as f:
+                    line_count = sum(1 for _ in f)
+                    # Subtract 1 for header if present
+                    if read_params.get('header', 0) == 0:
+                        data_rows = line_count - 1
+                    else:
+                        data_rows = line_count - read_params['header'] - 1
+                
+                self.rows_count_var.set(f"{max(0, data_rows):,}")
+                self.cols_count_var.set(str(len(preview_df.columns)))
+                
+            except Exception:
+                # Fallback: read small sample to get column count
+                self.rows_count_var.set("Unknown")
+                self.cols_count_var.set(str(len(preview_df.columns)))
             
             # Update preview tree
             self.update_preview_tree(preview_df)
             
+            # Show success message
+            print(f"Successfully loaded preview: {preview_df.shape}")
+            
+        except UnicodeDecodeError as e:
+            error_msg = f"{_('Encoding error: Try different encoding (UTF-8, cp1251, etc.)')}\nDetails: {str(e)}"
+            messagebox.showerror(_("Encoding Error"), error_msg)
+            
+        except pd.errors.EmptyDataError:
+            messagebox.showerror(_("Error"), _("The CSV file appears to be empty"))
+            
+        except pd.errors.ParserError as e:
+            error_msg = f"{_('CSV parsing error: Check delimiter and file format')}\nDetails: {str(e)}"
+            messagebox.showerror(_("Parsing Error"), error_msg)
+            
+        except FileNotFoundError:
+            messagebox.showerror(_("Error"), f"{_('File not found')}: {self.current_file_path}")
+            
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to preview file: {str(e)}")
+            error_msg = f"{_('Failed to preview file: {error}').format(error=str(e))}\n\n{_('Troubleshooting tips:')}\n{_('• Check file encoding (try UTF-8 or cp1251)')}\n{_('• Verify delimiter (comma, semicolon, tab)')}\n{_('• Ensure file is not corrupted')}"
+            messagebox.showerror(_("Error"), error_msg)
+            print(f"Preview error: {e}")
+            import traceback
+            traceback.print_exc()
             
     def update_preview_tree(self, df):
         """Update the preview treeview with data."""
@@ -457,7 +523,7 @@ class DataLoaderDialog:
             
     def update_column_mappings(self):
         """Update column mapping options."""
-        if not self.preview_data or self.preview_data.empty:
+        if self.preview_data is None or self.preview_data.empty:
             return
             
         columns = list(self.preview_data.columns)
@@ -467,18 +533,38 @@ class DataLoaderDialog:
         self.y_column_combo['values'] = columns
         
         # Auto-detect coordinate columns
+        x_candidates = []
+        y_candidates = []
+        
         for col in columns:
             col_lower = col.lower()
-            if 'x' in col_lower and not self.x_column_var.get():
-                self.x_column_var.set(col)
-            elif 'y' in col_lower and not self.y_column_var.get():
-                self.y_column_var.set(col)
+            # Check for X/East coordinate
+            if any(keyword in col_lower for keyword in ['x', 'east', 'easting', 'долгота', 'восток']):
+                x_candidates.append(col)
+            # Check for Y/North coordinate
+            elif any(keyword in col_lower for keyword in ['y', 'north', 'northing', 'широта', 'север']):
+                y_candidates.append(col)
+        
+        # Set the first match for each coordinate
+        if x_candidates and not self.x_column_var.get():
+            self.x_column_var.set(x_candidates[0])
+        if y_candidates and not self.y_column_var.get():
+            self.y_column_var.set(y_candidates[0])
                 
         # Update available columns list
         self.available_listbox.delete(0, tk.END)
+        self.selected_listbox.delete(0, tk.END)
+        
+        # Add all non-coordinate columns to available list first
+        available_cols = []
         for col in columns:
             if col not in [self.x_column_var.get(), self.y_column_var.get()]:
+                available_cols.append(col)
                 self.available_listbox.insert(tk.END, col)
+        
+        # Auto-select all available columns for interpolation (user can remove if needed)
+        if available_cols:
+            self.add_all_value_columns()
                 
     def add_value_column(self):
         """Add selected column to value columns."""
@@ -487,6 +573,7 @@ class DataLoaderDialog:
             item = self.available_listbox.get(index)
             self.selected_listbox.insert(tk.END, item)
             self.available_listbox.delete(index)
+        self.update_navigation_buttons()
             
     def remove_value_column(self):
         """Remove selected column from value columns."""
@@ -495,6 +582,7 @@ class DataLoaderDialog:
             item = self.selected_listbox.get(index)
             self.available_listbox.insert(tk.END, item)
             self.selected_listbox.delete(index)
+        self.update_navigation_buttons()
             
     def add_all_value_columns(self):
         """Add all available columns to value columns."""
@@ -502,6 +590,7 @@ class DataLoaderDialog:
         self.available_listbox.delete(0, tk.END)
         for item in items:
             self.selected_listbox.insert(tk.END, item)
+        self.update_navigation_buttons()
             
     def remove_all_value_columns(self):
         """Remove all value columns."""
@@ -509,6 +598,7 @@ class DataLoaderDialog:
         self.selected_listbox.delete(0, tk.END)
         for item in items:
             self.available_listbox.insert(tk.END, item)
+        self.update_navigation_buttons()
             
     def next_step(self):
         """Go to next step."""
@@ -536,13 +626,28 @@ class DataLoaderDialog:
         # Previous button
         self.prev_button.config(state=tk.NORMAL if current_tab > 0 else tk.DISABLED)
         
-        # Next button
+        # Next button logic based on current tab
         if current_tab < max_tab:
-            self.next_button.config(state=tk.NORMAL)
+            # Check if current step can proceed
+            can_proceed = self.can_proceed_from_current_tab(current_tab)
+            self.next_button.config(state=tk.NORMAL if can_proceed else tk.DISABLED)
             self.load_button.config(state=tk.DISABLED)
         else:
+            # On final tab - check complete validation
             self.next_button.config(state=tk.DISABLED)
             self.load_button.config(state=tk.NORMAL if self.validate_settings() else tk.DISABLED)
+            
+    def can_proceed_from_current_tab(self, current_tab: int) -> bool:
+        """Check if user can proceed from current tab."""
+        if current_tab == 0:  # File selection tab
+            return bool(self.current_file_path)
+        elif current_tab == 1:  # Preview tab
+            return bool(self.preview_data is not None)
+        elif current_tab == 2:  # Column mapping tab
+            # Allow proceeding even without value columns selected - user might want to select them later
+            return bool(self.x_column_var.get() and self.y_column_var.get())
+        else:
+            return True
             
     def validate_settings(self) -> bool:
         """Validate import settings."""
@@ -608,7 +713,7 @@ class DataLoaderDialog:
         selection = event.widget.curselection()
         if selection:
             # This would load the actual file path
-            messagebox.showinfo("Info", "Recent file selection - To be implemented")
+            messagebox.showinfo(_("Info"), _("Recent file selection - To be implemented"))
             
     def add_to_recent_files(self, file_path: str):
         """Add file to recent files list."""
@@ -618,7 +723,7 @@ class DataLoaderDialog:
     def load_data(self):
         """Load the data with current settings."""
         if not self.validate_settings():
-            messagebox.showerror("Error", "Please complete all required settings")
+            messagebox.showerror(_("Error"), _("Please complete all required settings"))
             return
             
         try:
@@ -639,12 +744,39 @@ class DataLoaderDialog:
             self.dialog.destroy()
             
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to load data: {str(e)}")
+            messagebox.showerror(_("Error"), f"{_('Failed to load data')}: {str(e)}")
             
     def cancel(self):
         """Cancel dialog."""
         self.result = None
+        # Unregister from language change events
+        try:
+            from ...i18n import remove_language_change_listener
+            remove_language_change_listener(self.update_language)
+        except:
+            pass
         self.dialog.destroy()
+        
+    def update_language(self):
+        """Update all text elements with new translations."""
+        try:
+            # Update dialog title
+            self.dialog.title(_("Load Data File"))
+            
+            # Update notebook tab titles
+            for i, tab_id in enumerate(['1. Select File', '2. Preview Data', '3. Map Columns', '4. Settings']):
+                self.notebook.tab(i, text=_(tab_id))
+            
+            # Update "No file selected" text if currently displayed
+            if self.file_path_var.get() in ["No file selected", "Файл не выбран"]:
+                self.file_path_var.set(_("No file selected"))
+                
+            print("DataLoaderDialog language updated successfully")
+            
+        except Exception as e:
+            print(f"Error updating DataLoaderDialog language: {e}")
+            import traceback
+            traceback.print_exc()
         
     def show(self) -> Optional[Dict[str, Any]]:
         """Show dialog and return result."""

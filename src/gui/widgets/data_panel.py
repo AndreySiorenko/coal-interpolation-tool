@@ -6,6 +6,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Dict, Any, Optional
 
+# Import i18n system
+from ...i18n import _
+
 
 class DataPanel:
     """
@@ -30,7 +33,10 @@ class DataPanel:
         self.data_info = None
         
         # Create main frame
-        self.frame = ttk.LabelFrame(parent, text="Data", padding="5")
+        self.frame = ttk.LabelFrame(parent, text=_("Data"), padding="5")
+        
+        # Store labels for language updates
+        self.ui_labels = {}
         
         self.create_widgets()
         self.setup_bindings()
@@ -38,54 +44,61 @@ class DataPanel:
     def create_widgets(self):
         """Create the panel widgets."""
         # File information section
-        file_frame = ttk.LabelFrame(self.frame, text="File Information", padding="5")
-        file_frame.pack(fill=tk.X, pady=(0, 5))
+        self.file_frame = ttk.LabelFrame(self.frame, text=_("File Information"), padding="5")
+        self.file_frame.pack(fill=tk.X, pady=(0, 5))
         
-        self.filename_var = tk.StringVar(value="No file loaded")
-        ttk.Label(file_frame, text="File:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(file_frame, textvariable=self.filename_var).grid(row=0, column=1, sticky=tk.W)
+        self.filename_var = tk.StringVar(value=_("No file loaded"))
+        self.ui_labels['file_label'] = ttk.Label(self.file_frame, text=_("File:"))
+        self.ui_labels['file_label'].grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.file_frame, textvariable=self.filename_var).grid(row=0, column=1, sticky=tk.W)
         
         self.rows_var = tk.StringVar(value="0")
-        ttk.Label(file_frame, text="Rows:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(file_frame, textvariable=self.rows_var).grid(row=1, column=1, sticky=tk.W)
+        self.ui_labels['rows_label'] = ttk.Label(self.file_frame, text=_("Rows:"))
+        self.ui_labels['rows_label'].grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.file_frame, textvariable=self.rows_var).grid(row=1, column=1, sticky=tk.W)
         
         self.columns_var = tk.StringVar(value="0")
-        ttk.Label(file_frame, text="Columns:").grid(row=2, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(file_frame, textvariable=self.columns_var).grid(row=2, column=1, sticky=tk.W)
+        self.ui_labels['columns_label'] = ttk.Label(self.file_frame, text=_("Columns:"))
+        self.ui_labels['columns_label'].grid(row=2, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.file_frame, textvariable=self.columns_var).grid(row=2, column=1, sticky=tk.W)
         
         # Data bounds section
-        bounds_frame = ttk.LabelFrame(self.frame, text="Data Bounds", padding="5")
-        bounds_frame.pack(fill=tk.X, pady=(0, 5))
+        self.bounds_frame = ttk.LabelFrame(self.frame, text=_("Data Bounds"), padding="5")
+        self.bounds_frame.pack(fill=tk.X, pady=(0, 5))
         
         self.min_x_var = tk.StringVar(value="-")
         self.max_x_var = tk.StringVar(value="-")
         self.min_y_var = tk.StringVar(value="-")
         self.max_y_var = tk.StringVar(value="-")
         
-        ttk.Label(bounds_frame, text="X Range:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(bounds_frame, textvariable=self.min_x_var).grid(row=0, column=1, sticky=tk.W)
-        ttk.Label(bounds_frame, text="to").grid(row=0, column=2, padx=5)
-        ttk.Label(bounds_frame, textvariable=self.max_x_var).grid(row=0, column=3, sticky=tk.W)
+        self.ui_labels['x_range_label'] = ttk.Label(self.bounds_frame, text=_("X Range:"))
+        self.ui_labels['x_range_label'].grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.bounds_frame, textvariable=self.min_x_var).grid(row=0, column=1, sticky=tk.W)
+        self.ui_labels['to_label1'] = ttk.Label(self.bounds_frame, text=_("to"))
+        self.ui_labels['to_label1'].grid(row=0, column=2, padx=5)
+        ttk.Label(self.bounds_frame, textvariable=self.max_x_var).grid(row=0, column=3, sticky=tk.W)
         
-        ttk.Label(bounds_frame, text="Y Range:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(bounds_frame, textvariable=self.min_y_var).grid(row=1, column=1, sticky=tk.W)
-        ttk.Label(bounds_frame, text="to").grid(row=1, column=2, padx=5)
-        ttk.Label(bounds_frame, textvariable=self.max_y_var).grid(row=1, column=3, sticky=tk.W)
+        self.ui_labels['y_range_label'] = ttk.Label(self.bounds_frame, text=_("Y Range:"))
+        self.ui_labels['y_range_label'].grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.bounds_frame, textvariable=self.min_y_var).grid(row=1, column=1, sticky=tk.W)
+        self.ui_labels['to_label2'] = ttk.Label(self.bounds_frame, text=_("to"))
+        self.ui_labels['to_label2'].grid(row=1, column=2, padx=5)
+        ttk.Label(self.bounds_frame, textvariable=self.max_y_var).grid(row=1, column=3, sticky=tk.W)
         
         # Columns list section
-        columns_frame = ttk.LabelFrame(self.frame, text="Columns", padding="5")
-        columns_frame.pack(fill=tk.BOTH, expand=True)
+        self.columns_frame = ttk.LabelFrame(self.frame, text=_("Columns"), padding="5")
+        self.columns_frame.pack(fill=tk.BOTH, expand=True)
         
         # Create treeview for columns
-        columns = ("Name", "Type", "Missing")
-        self.columns_tree = ttk.Treeview(columns_frame, columns=columns, show="headings", height=6)
+        self.column_headers = [_("Name"), _("Type"), _("Missing")]
+        self.columns_tree = ttk.Treeview(self.columns_frame, columns=self.column_headers, show="headings", height=6)
         
-        for col in columns:
-            self.columns_tree.heading(col, text=col)
-            self.columns_tree.column(col, width=80)
+        for i, col in enumerate(self.column_headers):
+            self.columns_tree.heading(f"#{i+1}", text=col)
+            self.columns_tree.column(f"#{i+1}", width=80)
         
         # Scrollbar for treeview
-        scrollbar = ttk.Scrollbar(columns_frame, orient=tk.VERTICAL, command=self.columns_tree.yview)
+        scrollbar = ttk.Scrollbar(self.columns_frame, orient=tk.VERTICAL, command=self.columns_tree.yview)
         self.columns_tree.configure(yscrollcommand=scrollbar.set)
         
         self.columns_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -95,19 +108,25 @@ class DataPanel:
         actions_frame = ttk.Frame(self.frame)
         actions_frame.pack(fill=tk.X, pady=(5, 0))
         
-        ttk.Button(
+        self.reload_btn = ttk.Button(
             actions_frame, 
-            text="Reload Data", 
+            text=_("Reload Data"), 
             command=self.reload_data,
             state=tk.DISABLED
-        ).pack(side=tk.LEFT, padx=(0, 5))
+        )
+        self.reload_btn.pack(side=tk.LEFT, padx=(0, 5))
         
-        ttk.Button(
+        self.statistics_btn = ttk.Button(
             actions_frame, 
-            text="View Statistics", 
+            text=_("View Statistics"), 
             command=self.show_statistics,
             state=tk.DISABLED
-        ).pack(side=tk.LEFT)
+        )
+        self.statistics_btn.pack(side=tk.LEFT)
+        
+        # Store buttons for language updates
+        self.ui_labels['reload_btn'] = self.reload_btn
+        self.ui_labels['statistics_btn'] = self.statistics_btn
         
     def setup_bindings(self):
         """Setup event bindings."""
@@ -179,9 +198,23 @@ class DataPanel:
             
     def reload_data(self):
         """Reload the current data file."""
-        # This would trigger a reload of the current file
-        # For now, just show a message
-        tk.messagebox.showinfo("Info", "Reload functionality - To be implemented")
+        if not self.data_info:
+            tk.messagebox.showwarning(_("Warning"), _("No data loaded to reload"))
+            return
+        
+        file_path = self.data_info.get('file_path')
+        if not file_path:
+            tk.messagebox.showwarning(_("Warning"), _("Original file path not available"))
+            return
+        
+        # Show confirmation dialog
+        if tk.messagebox.askyesno(_("Confirm Reload"), _("Reload data from file?\nAny unsaved changes will be lost.")):
+            try:
+                # Notify controller to reload the data
+                self.controller.reload_current_data()
+                tk.messagebox.showinfo(_("Success"), _("Data reloaded successfully"))
+            except Exception as e:
+                tk.messagebox.showerror(_("Error"), f"{_('Failed to reload data')}: {str(e)}")
         
     def show_statistics(self):
         """Show detailed data statistics."""
@@ -282,3 +315,51 @@ class DataPanel:
             content.append("")
             
         return "\n".join(content)
+    
+    def update_language(self):
+        """Update all text elements with new translations."""
+        try:
+            # Update main frame title
+            self.frame.config(text=_("Data"))
+            
+            # Update frame titles
+            self.file_frame.config(text=_("File Information"))
+            self.bounds_frame.config(text=_("Data Bounds"))
+            self.columns_frame.config(text=_("Columns"))
+            
+            # Update all labels
+            label_updates = {
+                'file_label': _("File:"),
+                'rows_label': _("Rows:"),
+                'columns_label': _("Columns:"),
+                'x_range_label': _("X Range:"),
+                'y_range_label': _("Y Range:"),
+                'to_label1': _("to"),
+                'to_label2': _("to")
+            }
+            
+            for label_key, text in label_updates.items():
+                if label_key in self.ui_labels:
+                    self.ui_labels[label_key].config(text=text)
+            
+            # Update buttons
+            if 'reload_btn' in self.ui_labels:
+                self.ui_labels['reload_btn'].config(text=_("Reload Data"))
+            if 'statistics_btn' in self.ui_labels:
+                self.ui_labels['statistics_btn'].config(text=_("View Statistics"))
+            
+            # Update column headers
+            headers = [_("Name"), _("Type"), _("Missing")]
+            for i, header in enumerate(headers):
+                self.columns_tree.heading(f"#{i+1}", text=header)
+            
+            # Update no file loaded message if it's currently shown
+            if self.filename_var.get() in ["No file loaded", "Файл не загружен"]:
+                self.filename_var.set(_("No file loaded"))
+                
+            print("DataPanel language updated successfully")
+            
+        except Exception as e:
+            print(f"Error updating DataPanel language: {e}")
+            import traceback
+            traceback.print_exc()

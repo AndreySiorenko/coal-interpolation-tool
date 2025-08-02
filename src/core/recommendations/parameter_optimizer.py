@@ -58,11 +58,13 @@ class ParameterOptimizer:
         self.data = data
         constraints = user_constraints or {}
         
-        if method.upper() == 'IDW':
+        method_normalized = method.upper()
+        
+        if method_normalized == 'IDW':
             return self._optimize_idw_parameters(constraints)
-        elif method.upper() == 'KRIGING':
+        elif method_normalized in ['KRIGING', 'ORDINARY KRIGING']:
             return self._optimize_kriging_parameters(constraints)
-        elif method.upper() == 'RBF':
+        elif method_normalized in ['RBF', 'RADIAL BASIS FUNCTIONS']:
             return self._optimize_rbf_parameters(constraints)
         else:
             raise ValueError(f"Unknown method: {method}")

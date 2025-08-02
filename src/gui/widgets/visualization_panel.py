@@ -14,6 +14,10 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.figure import Figure
 import matplotlib.patches as patches
 from matplotlib.colors import LinearSegmentedColormap
+from mpl_toolkits.mplot3d import Axes3D
+
+# Import i18n system
+from ...i18n import _
 
 
 class VisualizationPanel:
@@ -43,12 +47,17 @@ class VisualizationPanel:
         self.canvas = None
         self.toolbar = None
         self.visualization_mode = tk.StringVar(value="both")  # both, data_only, results_only
+        self.view_mode = tk.StringVar(value="2d")  # 2d, 3d
         
         # Create main frame
-        self.frame = ttk.LabelFrame(parent, text="Visualization", padding="5")
+        self.frame = ttk.LabelFrame(parent, text=_("Visualization"), padding="5")
         
         self.create_widgets()
         self.setup_bindings()
+        
+        # Register for language change events
+        from ...i18n import add_language_change_listener
+        add_language_change_listener(self.update_language)
         
     def create_widgets(self):
         """Create the panel widgets."""
@@ -57,30 +66,48 @@ class VisualizationPanel:
         control_frame.pack(fill=tk.X, pady=(0, 5))
         
         # Visualization options
-        options_frame = ttk.LabelFrame(control_frame, text="Display Options", padding="5")
+        options_frame = ttk.LabelFrame(control_frame, text=_("Display Options"), padding="5")
         options_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         # Mode selection
-        ttk.Label(options_frame, text="Mode:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(options_frame, text=_("Mode:")).grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
         
         mode_frame = ttk.Frame(options_frame)
         mode_frame.grid(row=0, column=1, sticky=tk.W)
         
         ttk.Radiobutton(
-            mode_frame, text="Data + Results", 
+            mode_frame, text=_("Data + Results"), 
             variable=self.visualization_mode, value="both",
             command=self.update_visualization
         ).pack(side=tk.LEFT, padx=(0, 10))
         
         ttk.Radiobutton(
-            mode_frame, text="Data Only", 
+            mode_frame, text=_("Data Only"), 
             variable=self.visualization_mode, value="data_only",
             command=self.update_visualization
         ).pack(side=tk.LEFT, padx=(0, 10))
         
         ttk.Radiobutton(
-            mode_frame, text="Results Only", 
+            mode_frame, text=_("Results Only"), 
             variable=self.visualization_mode, value="results_only",
+            command=self.update_visualization
+        ).pack(side=tk.LEFT)
+        
+        # View mode selection (2D/3D)
+        ttk.Label(options_frame, text="View:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
+        
+        view_frame = ttk.Frame(options_frame)
+        view_frame.grid(row=1, column=1, sticky=tk.W)
+        
+        ttk.Radiobutton(
+            view_frame, text=_("2D View"), 
+            variable=self.view_mode, value="2d",
+            command=self.update_visualization
+        ).pack(side=tk.LEFT, padx=(0, 10))
+        
+        ttk.Radiobutton(
+            view_frame, text=_("3D View"), 
+            variable=self.view_mode, value="3d",
             command=self.update_visualization
         ).pack(side=tk.LEFT)
         
@@ -90,7 +117,7 @@ class VisualizationPanel:
         
         self.reset_btn = ttk.Button(
             buttons_frame,
-            text="Reset View",
+            text=_("Reset View"),
             command=self.reset_view,
             state=tk.DISABLED
         )
@@ -98,7 +125,7 @@ class VisualizationPanel:
         
         self.export_btn = ttk.Button(
             buttons_frame,
-            text="Export Image",
+            text=_("Export Image"),
             command=self.export_image,
             state=tk.DISABLED
         )
@@ -139,11 +166,11 @@ class VisualizationPanel:
         ax = self.figure.add_subplot(111)
         
         ax.text(0.5, 0.5, 
-                'Visualization Panel\n\n'
-                '• Load data to see scatter plot\n'
-                '• Run interpolation to see results\n'
-                '• Use toolbar for zoom and pan\n\n'
-                'Ready for data...',
+                f'{_("Visualization Panel")}\n\n'
+                f'• {_("Load data to see scatter plot")}\n'
+                f'• {_("Run interpolation to see results")}\n'
+                f'• {_("Use toolbar for zoom and pan")}\n\n'
+                f'{_("Ready for data...")}',
                 ha='center', va='center', fontsize=12,
                 transform=ax.transAxes,
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgray", alpha=0.7))
@@ -400,24 +427,37 @@ class VisualizationPanel:
     def export_image(self):
         """Export the current visualization as an image."""
         if not self.figure:
-            messagebox.showwarning("Warning", "No visualization to export")
+            messagebox.showwarning(_("Warning"), _("No visualization to export"))
             return
             
         file_path = filedialog.asksaveasfilename(
-            title="Export Visualization",
+            title=_("Export Visualization"),
             defaultextension=".png",
             filetypes=[
-                ("PNG files", "*.png"),
-                ("PDF files", "*.pdf"), 
-                ("SVG files", "*.svg"),
-                ("JPEG files", "*.jpg"),
-                ("All files", "*.*")
+                (_("PNG files"), "*.png"),
+                (_("PDF files"), "*.pdf"), 
+                (_("SVG files"), "*.svg"),
+                (_("JPEG files"), "*.jpg"),
+                (_("All files"), "*.*")
             ]
         )
         
         if file_path:
             try:
                 self.figure.savefig(file_path, dpi=300, bbox_inches='tight')
-                messagebox.showinfo("Success", f"Visualization exported to:\n{file_path}")
+                messagebox.showinfo(_("Success"), f"{_('Visualization exported to')}:\n{file_path}")
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to export image:\n{str(e)}")
+                messagebox.showerror(_("Error"), f"{_('Failed to export image')}:\n{str(e)}")
+                
+    def update_language(self):
+        """Update all UI elements when language changes."""
+        # Update frame title
+        self.frame.config(text=_("Visualization"))
+        
+        # Update control buttons
+        self.reset_btn.config(text=_("Reset View"))
+        self.export_btn.config(text=_("Export Image"))
+        
+        # Update the visualization if data exists
+        if self.current_data is not None:
+            self.update_visualization()

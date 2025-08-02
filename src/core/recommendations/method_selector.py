@@ -16,8 +16,8 @@ from .data_analyzer import DataCharacteristics
 class InterpolationMethod(Enum):
     """Available interpolation methods."""
     IDW = "IDW"
-    ORDINARY_KRIGING = "Ordinary Kriging"
-    RBF = "Radial Basis Functions"
+    ORDINARY_KRIGING = "Kriging"
+    RBF = "RBF"
 
 
 @dataclass

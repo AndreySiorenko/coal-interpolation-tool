@@ -544,7 +544,10 @@ class SpatialAnalyzer:
         
         # Create simple spatial weights (inverse distance with cutoff)
         max_distance = np.percentile(distances[distances > 0], 75)
-        weights = np.where(distances <= max_distance, 1/distances, 0)
+        # Use safe division to avoid zero division
+        with np.errstate(divide='ignore', invalid='ignore'):
+            inv_distances = np.divide(1, distances, out=np.zeros_like(distances), where=distances!=0)
+        weights = np.where((distances <= max_distance) & (distances > 0), inv_distances, 0)
         np.fill_diagonal(weights, 0)  # No self-weights
         
         # Calculate Moran's I approximation

@@ -20,7 +20,69 @@ from scipy.spatial.distance import pdist, squareform
 import matplotlib.pyplot as plt
 from sklearn.model_selection import KFold
 
-from .kriging import VariogramModel, VariogramModels
+# Moved to avoid circular import - these are defined below
+# from .kriging import VariogramModel, VariogramModels
+
+# Local copy of VariogramModel to avoid circular import
+from enum import Enum
+
+class VariogramModel(Enum):
+    """Available variogram model types."""
+    SPHERICAL = "spherical"
+    EXPONENTIAL = "exponential"
+    GAUSSIAN = "gaussian"
+    LINEAR = "linear"
+    POWER = "power"
+    NUGGET = "nugget"
+
+
+class VariogramModels:
+    """Collection of variogram model functions."""
+    
+    @staticmethod
+    def spherical(h: np.ndarray, nugget: float, sill: float, range_param: float) -> np.ndarray:
+        """Spherical variogram model."""
+        gamma = np.full_like(h, nugget + sill, dtype=float)
+        mask = (h > 0) & (h < range_param)
+        h_normalized = h[mask] / range_param
+        gamma[mask] = nugget + sill * (1.5 * h_normalized - 0.5 * h_normalized**3)
+        gamma[h == 0] = 0.0
+        return gamma
+    
+    @staticmethod
+    def exponential(h: np.ndarray, nugget: float, sill: float, range_param: float) -> np.ndarray:
+        """Exponential variogram model."""
+        gamma = nugget + sill * (1 - np.exp(-h / range_param))
+        gamma[h == 0] = 0.0
+        return gamma
+    
+    @staticmethod
+    def gaussian(h: np.ndarray, nugget: float, sill: float, range_param: float) -> np.ndarray:
+        """Gaussian variogram model."""
+        gamma = nugget + sill * (1 - np.exp(-(h / range_param)**2))
+        gamma[h == 0] = 0.0
+        return gamma
+    
+    @staticmethod
+    def linear(h: np.ndarray, nugget: float, sill: float, range_param: float) -> np.ndarray:
+        """Linear variogram model."""
+        gamma = nugget + sill * (h / range_param)
+        gamma[h == 0] = 0.0
+        return gamma
+    
+    @staticmethod
+    def power(h: np.ndarray, nugget: float, sill: float, range_param: float) -> np.ndarray:
+        """Power variogram model."""
+        gamma = nugget + sill * (h / range_param)**0.5
+        gamma[h == 0] = 0.0
+        return gamma
+    
+    @staticmethod
+    def nugget(h: np.ndarray, nugget: float, sill: float, range_param: float) -> np.ndarray:
+        """Pure nugget model."""
+        gamma = np.full_like(h, nugget, dtype=float)
+        gamma[h == 0] = 0.0
+        return gamma
 
 
 @dataclass

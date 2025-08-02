@@ -6,6 +6,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Dict, Any, Optional
 
+# Import i18n system
+from ...i18n import _
+
 
 class ResultsPanel:
     """
@@ -31,7 +34,10 @@ class ResultsPanel:
         self.current_results = None
         
         # Create main frame
-        self.frame = ttk.LabelFrame(parent, text="Results", padding="5")
+        self.frame = ttk.LabelFrame(parent, text=_("Results"), padding="5")
+        
+        # Store labels for language updates
+        self.ui_labels = {}
         
         self.create_widgets()
         self.setup_bindings()
@@ -39,8 +45,8 @@ class ResultsPanel:
     def create_widgets(self):
         """Create the panel widgets."""
         # Statistics section
-        stats_frame = ttk.LabelFrame(self.frame, text="Statistics", padding="5")
-        stats_frame.pack(fill=tk.X, pady=(0, 5))
+        self.stats_frame = ttk.LabelFrame(self.frame, text=_("Statistics"), padding="5")
+        self.stats_frame.pack(fill=tk.X, pady=(0, 5))
         
         # Create variables for statistics display
         self.min_value_var = tk.StringVar(value="-")
@@ -48,49 +54,56 @@ class ResultsPanel:
         self.mean_value_var = tk.StringVar(value="-")
         self.method_var = tk.StringVar(value="-")
         
-        ttk.Label(stats_frame, text="Method:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(stats_frame, textvariable=self.method_var).grid(row=0, column=1, sticky=tk.W)
+        self.ui_labels['method_label'] = ttk.Label(self.stats_frame, text=_("Method:"))
+        self.ui_labels['method_label'].grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.stats_frame, textvariable=self.method_var).grid(row=0, column=1, sticky=tk.W)
         
-        ttk.Label(stats_frame, text="Min Value:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(stats_frame, textvariable=self.min_value_var).grid(row=1, column=1, sticky=tk.W)
+        self.ui_labels['min_value_label'] = ttk.Label(self.stats_frame, text=_("Min Value:"))
+        self.ui_labels['min_value_label'].grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.stats_frame, textvariable=self.min_value_var).grid(row=1, column=1, sticky=tk.W)
         
-        ttk.Label(stats_frame, text="Max Value:").grid(row=2, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(stats_frame, textvariable=self.max_value_var).grid(row=2, column=1, sticky=tk.W)
+        self.ui_labels['max_value_label'] = ttk.Label(self.stats_frame, text=_("Max Value:"))
+        self.ui_labels['max_value_label'].grid(row=2, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.stats_frame, textvariable=self.max_value_var).grid(row=2, column=1, sticky=tk.W)
         
-        ttk.Label(stats_frame, text="Mean Value:").grid(row=3, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(stats_frame, textvariable=self.mean_value_var).grid(row=3, column=1, sticky=tk.W)
+        self.ui_labels['mean_value_label'] = ttk.Label(self.stats_frame, text=_("Mean Value:"))
+        self.ui_labels['mean_value_label'].grid(row=3, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.stats_frame, textvariable=self.mean_value_var).grid(row=3, column=1, sticky=tk.W)
         
         # Grid information section
-        grid_frame = ttk.LabelFrame(self.frame, text="Grid Information", padding="5")
-        grid_frame.pack(fill=tk.X, pady=(0, 5))
+        self.grid_frame = ttk.LabelFrame(self.frame, text=_("Grid Information"), padding="5")
+        self.grid_frame.pack(fill=tk.X, pady=(0, 5))
         
         self.grid_points_var = tk.StringVar(value="-")
         self.cell_size_var = tk.StringVar(value="-")
         self.grid_extent_var = tk.StringVar(value="-")
         
-        ttk.Label(grid_frame, text="Grid Points:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(grid_frame, textvariable=self.grid_points_var).grid(row=0, column=1, sticky=tk.W)
+        self.ui_labels['grid_points_label'] = ttk.Label(self.grid_frame, text=_("Grid Points:"))
+        self.ui_labels['grid_points_label'].grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.grid_frame, textvariable=self.grid_points_var).grid(row=0, column=1, sticky=tk.W)
         
-        ttk.Label(grid_frame, text="Cell Size:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(grid_frame, textvariable=self.cell_size_var).grid(row=1, column=1, sticky=tk.W)
+        self.ui_labels['cell_size_label'] = ttk.Label(self.grid_frame, text=_("Cell Size:"))
+        self.ui_labels['cell_size_label'].grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.grid_frame, textvariable=self.cell_size_var).grid(row=1, column=1, sticky=tk.W)
         
-        ttk.Label(grid_frame, text="Grid Extent:").grid(row=2, column=0, sticky=tk.W, padx=(0, 5))
-        ttk.Label(grid_frame, textvariable=self.grid_extent_var).grid(row=2, column=1, sticky=tk.W)
+        self.ui_labels['grid_extent_label'] = ttk.Label(self.grid_frame, text=_("Grid Extent:"))
+        self.ui_labels['grid_extent_label'].grid(row=2, column=0, sticky=tk.W, padx=(0, 5))
+        ttk.Label(self.grid_frame, textvariable=self.grid_extent_var).grid(row=2, column=1, sticky=tk.W)
         
         # Results table
-        table_frame = ttk.LabelFrame(self.frame, text="Sample Results", padding="5")
-        table_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
+        self.table_frame = ttk.LabelFrame(self.frame, text=_("Sample Results"), padding="5")
+        self.table_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
         
         # Create treeview for results preview
-        columns = ("X", "Y", "Value")
-        self.results_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=6)
+        self.column_headers = [_("X"), _("Y"), _("Value")]
+        self.results_tree = ttk.Treeview(self.table_frame, columns=self.column_headers, show="headings", height=6)
         
-        for col in columns:
-            self.results_tree.heading(col, text=col)
-            self.results_tree.column(col, width=80)
+        for i, col in enumerate(self.column_headers):
+            self.results_tree.heading(f"#{i+1}", text=col)
+            self.results_tree.column(f"#{i+1}", width=80)
         
         # Scrollbar for treeview
-        scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.results_tree.yview)
+        scrollbar = ttk.Scrollbar(self.table_frame, orient=tk.VERTICAL, command=self.results_tree.yview)
         self.results_tree.configure(yscrollcommand=scrollbar.set)
         
         self.results_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -100,30 +113,37 @@ class ResultsPanel:
         actions_frame = ttk.Frame(self.frame)
         actions_frame.pack(fill=tk.X)
         
-        ttk.Button(
+        self.ui_labels['view_all_btn'] = ttk.Button(
             actions_frame,
-            text="View All Results",
+            text=_("View All Results"),
             command=self.view_all_results,
             state=tk.DISABLED
-        ).pack(side=tk.LEFT, padx=(0, 5))
+        )
+        self.ui_labels['view_all_btn'].pack(side=tk.LEFT, padx=(0, 5))
         
-        ttk.Button(
+        self.ui_labels['export_btn'] = ttk.Button(
             actions_frame,
-            text="Export Results",
+            text=_("Export Results"),
             command=self.export_results,
             state=tk.DISABLED
-        ).pack(side=tk.LEFT, padx=(0, 5))
+        )
+        self.ui_labels['export_btn'].pack(side=tk.LEFT, padx=(0, 5))
         
-        ttk.Button(
+        self.ui_labels['quality_btn'] = ttk.Button(
             actions_frame,
-            text="Quality Report",
+            text=_("Quality Report"),
             command=self.show_quality_report,
             state=tk.DISABLED
-        ).pack(side=tk.LEFT)
+        )
+        self.ui_labels['quality_btn'].pack(side=tk.LEFT)
         
     def setup_bindings(self):
         """Setup event bindings."""
         self.controller.bind_event("interpolation_completed", self.on_interpolation_completed)
+        
+        # Register for language change events
+        from ...i18n import add_language_change_listener
+        add_language_change_listener(self.update_language)
         
     def on_interpolation_completed(self, results: Dict[str, Any]):
         """
@@ -217,7 +237,7 @@ class ResultsPanel:
     def create_results_window(self):
         """Create a window showing all interpolation results."""
         results_window = tk.Toplevel(self.frame)
-        results_window.title("All Interpolation Results")
+        results_window.title(_("All Interpolation Results"))
         results_window.geometry("800x600")
         results_window.transient(self.frame.winfo_toplevel())
         results_window.grab_set()
@@ -227,12 +247,12 @@ class ResultsPanel:
         table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Create treeview for all results
-        columns = ("X", "Y", "Interpolated Value")
+        columns = [_("X"), _("Y"), _("Interpolated Value")]
         full_tree = ttk.Treeview(table_frame, columns=columns, show="headings")
         
-        for col in columns:
-            full_tree.heading(col, text=col)
-            full_tree.column(col, width=150)
+        for i, col in enumerate(columns):
+            full_tree.heading(f"#{i+1}", text=col)
+            full_tree.column(f"#{i+1}", width=150)
         
         # Scrollbars
         v_scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=full_tree.yview)
@@ -269,7 +289,7 @@ class ResultsPanel:
         # Close button
         ttk.Button(
             results_window,
-            text="Close",
+            text=_("Close"),
             command=results_window.destroy
         ).pack(pady=10)
         
@@ -279,7 +299,7 @@ class ResultsPanel:
             return
             
         # This would open a file dialog and export results
-        tk.messagebox.showinfo("Info", "Export results functionality - To be implemented")
+        tk.messagebox.showinfo(_("Info"), _("Export results functionality - To be implemented"))
         
     def show_quality_report(self):
         """Show interpolation quality report."""
@@ -287,7 +307,34 @@ class ResultsPanel:
             return
             
         # This would show quality metrics like cross-validation results
-        quality_text = """
+        from ...i18n import get_current_language
+        
+        current_lang = get_current_language()
+        
+        if current_lang == 'ru':
+            quality_text = """
+ОТЧЕТ О КАЧЕСТВЕ ИНТЕРПОЛЯЦИИ
+
+Метод: ОВР (Обратно взвешенные расстояния)
+Использованные параметры:
+- Степень: 2.0
+- Радиус поиска: 1000м
+- Макс. точек: 12
+
+Метрики качества:
+- RMSE перекрестной проверки: [Будет рассчитано]
+- Средняя абсолютная ошибка: [Будет рассчитано]
+- R-квадрат: [Будет рассчитано]
+
+Рекомендации:
+- Рассмотрите настройку параметра степени для более гладких/резких результатов
+- Оцените радиус поиска на основе плотности данных
+- Сравните с другими методами интерполяции
+
+[Полный анализ качества будет реализован]
+            """
+        else:
+            quality_text = """
 INTERPOLATION QUALITY REPORT
 
 Method: IDW (Inverse Distance Weighted)
@@ -307,6 +354,56 @@ Recommendations:
 - Compare with other interpolation methods
 
 [Full quality analysis to be implemented]
-        """
+            """
         
-        tk.messagebox.showinfo("Quality Report", quality_text.strip())
+        tk.messagebox.showinfo(_("Quality Report"), quality_text.strip())
+    
+    def update_language(self):
+        """Update all text elements with new translations."""
+        try:
+            # Update main frame title
+            self.frame.config(text=_("Results"))
+            
+            # Update frame titles
+            self.stats_frame.config(text=_("Statistics"))
+            self.grid_frame.config(text=_("Grid Information"))
+            self.table_frame.config(text=_("Sample Results"))
+            
+            # Update all labels
+            label_updates = {
+                'method_label': _("Method:"),
+                'min_value_label': _("Min Value:"),
+                'max_value_label': _("Max Value:"),
+                'mean_value_label': _("Mean Value:"),
+                'grid_points_label': _("Grid Points:"),
+                'cell_size_label': _("Cell Size:"),
+                'grid_extent_label': _("Grid Extent:")
+            }
+            
+            for label_key, text in label_updates.items():
+                if label_key in self.ui_labels:
+                    self.ui_labels[label_key].config(text=text)
+            
+            # Update buttons
+            button_updates = {
+                'view_all_btn': _("View All Results"),
+                'export_btn': _("Export Results"),
+                'quality_btn': _("Quality Report")
+            }
+            
+            for btn_key, text in button_updates.items():
+                if btn_key in self.ui_labels:
+                    self.ui_labels[btn_key].config(text=text)
+            
+            # Update column headers
+            headers = [_("X"), _("Y"), _("Value")]
+            for i, header in enumerate(headers):
+                self.results_tree.heading(f"#{i+1}", text=header)
+                
+            print("ResultsPanel language updated successfully")
+            
+        except Exception as e:
+            print(f"Error updating ResultsPanel language: {e}")
+            import traceback
+            traceback.print_exc()
+

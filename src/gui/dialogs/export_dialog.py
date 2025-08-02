@@ -15,6 +15,9 @@ from ...io.writers.csv_writer import CSVWriter, CSVExportOptions
 from ...io.writers.geotiff_writer import GeoTIFFWriter, GeoTIFFExportOptions
 from ...io.writers.vtk_writer import VTKWriter, VTKExportOptions
 
+# Import i18n system
+from ...i18n import _
+
 
 class ExportDialog:
     """
@@ -60,7 +63,7 @@ class ExportDialog:
         
     def setup_dialog(self):
         """Setup dialog window properties."""
-        self.dialog.title("Export Interpolation Results")
+        self.dialog.title(_("Export Interpolation Results"))
         self.dialog.geometry("900x700")
         self.dialog.transient(self.parent)
         self.dialog.grab_set()
@@ -144,7 +147,7 @@ class ExportDialog:
         self.notebook.add(format_frame, text="1. Select Format")
         
         # Results info section
-        info_frame = ttk.LabelFrame(format_frame, text="Export Data Information", padding="10")
+        info_frame = ttk.LabelFrame(format_frame, text=_("Export Data Information"), padding="10")
         info_frame.pack(fill=tk.X, padx=10, pady=10)
         
         # Display information about the results
@@ -161,7 +164,7 @@ class ExportDialog:
         info_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Format selection section
-        format_selection_frame = ttk.LabelFrame(format_frame, text="Export Format", padding="10")
+        format_selection_frame = ttk.LabelFrame(format_frame, text=_("Export Format"), padding="10")
         format_selection_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
         
         self.format_var = tk.StringVar(value="CSV")
@@ -193,13 +196,13 @@ class ExportDialog:
             desc_label.pack(side=tk.LEFT, padx=(10, 0))
         
         # File selection section
-        file_frame = ttk.LabelFrame(format_frame, text="Output File", padding="10")
+        file_frame = ttk.LabelFrame(format_frame, text=_("Output File"), padding="10")
         file_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
         
         # Current file display
         ttk.Label(file_frame, text="Output File:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
         
-        self.export_path_var = tk.StringVar(value="No file selected")
+        self.export_path_var = tk.StringVar(value=_("No file selected"))
         file_label = ttk.Label(file_frame, textvariable=self.export_path_var, relief=tk.SUNKEN, padding="5")
         file_label.grid(row=1, column=0, columnspan=2, sticky=tk.W+tk.E, pady=(0, 10))
         
@@ -227,7 +230,7 @@ class ExportDialog:
         self.create_vtk_options()
         
         # Common options section
-        common_frame = ttk.LabelFrame(options_frame, text="Common Options", padding="10")
+        common_frame = ttk.LabelFrame(options_frame, text=_("Common Options"), padding="10")
         common_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
         
         self.include_metadata_var = tk.BooleanVar(value=True)
@@ -253,7 +256,7 @@ class ExportDialog:
         
     def create_csv_options(self):
         """Create CSV-specific options."""
-        self.csv_frame = ttk.LabelFrame(self.options_container, text="CSV Options", padding="10")
+        self.csv_frame = ttk.LabelFrame(self.options_container, text=_("CSV Options"), padding="10")
         
         # Delimiter
         ttk.Label(self.csv_frame, text="Delimiter:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
@@ -301,7 +304,7 @@ class ExportDialog:
         
     def create_geotiff_options(self):
         """Create GeoTIFF-specific options."""
-        self.geotiff_frame = ttk.LabelFrame(self.options_container, text="GeoTIFF Options", padding="10")
+        self.geotiff_frame = ttk.LabelFrame(self.options_container, text=_("GeoTIFF Options"), padding="10")
         
         # Compression
         ttk.Label(self.geotiff_frame, text="Compression:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
@@ -357,7 +360,7 @@ class ExportDialog:
         
     def create_vtk_options(self):
         """Create VTK-specific options."""
-        self.vtk_frame = ttk.LabelFrame(self.options_container, text="VTK Options", padding="10")
+        self.vtk_frame = ttk.LabelFrame(self.options_container, text=_("VTK Options"), padding="10")
         
         # File format
         ttk.Label(self.vtk_frame, text="File Format:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
@@ -392,7 +395,7 @@ class ExportDialog:
         self.notebook.add(preview_frame, text="3. Preview & Export")
         
         # Export summary section
-        summary_frame = ttk.LabelFrame(preview_frame, text="Export Summary", padding="10")
+        summary_frame = ttk.LabelFrame(preview_frame, text=_("Export Summary"), padding="10")
         summary_frame.pack(fill=tk.X, padx=10, pady=10)
         
         self.summary_text = tk.Text(summary_frame, height=8, wrap=tk.WORD, state=tk.DISABLED)
@@ -403,7 +406,7 @@ class ExportDialog:
         summary_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Preview section (for CSV format)
-        preview_data_frame = ttk.LabelFrame(preview_frame, text="Data Preview", padding="10")
+        preview_data_frame = ttk.LabelFrame(preview_frame, text=_("Data Preview"), padding="10")
         preview_data_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
         
         # Create treeview for data preview
@@ -423,7 +426,7 @@ class ExportDialog:
         preview_data_frame.grid_columnconfigure(0, weight=1)
         
         # Progress section
-        progress_frame = ttk.LabelFrame(preview_frame, text="Export Progress", padding="10")
+        progress_frame = ttk.LabelFrame(preview_frame, text=_("Export Progress"), padding="10")
         progress_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
         
         self.progress_var = tk.DoubleVar()
@@ -435,14 +438,14 @@ class ExportDialog:
         )
         self.progress_bar.pack(fill=tk.X, pady=(0, 5))
         
-        self.progress_label_var = tk.StringVar(value="Ready to export")
+        self.progress_label_var = tk.StringVar(value=_("Ready to export"))
         self.progress_label = ttk.Label(progress_frame, textvariable=self.progress_label_var)
         self.progress_label.pack(anchor=tk.W)
         
     def get_results_info(self) -> str:
         """Get formatted information about the results data."""
         if not self.results_data:
-            return "No results data available"
+            return _("No results data available")
             
         info_lines = []
         
@@ -474,7 +477,7 @@ class ExportDialog:
             info_lines.append(f"Mean: {stats.get('mean', 'N/A'):.3f}")
             
         if not info_lines:
-            info_lines.append("Results data structure not recognized")
+            info_lines.append(_("Results data structure not recognized"))
             
         return "\\n".join(info_lines)
         
@@ -506,7 +509,7 @@ class ExportDialog:
     def update_file_extension(self):
         """Update file extension based on format."""
         current_path = self.export_path_var.get()
-        if current_path != "No file selected":
+        if current_path != _("No file selected"):
             path = Path(current_path)
             stem = path.stem
             
@@ -745,7 +748,7 @@ class ExportDialog:
     def export_data(self):
         """Export the data with current settings."""
         if not self.validate_export_settings():
-            messagebox.showerror("Error", "Please complete all required settings")
+            messagebox.showerror(_("Error"), _("Please complete all required settings"))
             return
             
         try:

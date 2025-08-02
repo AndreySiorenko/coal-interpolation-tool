@@ -10,4 +10,4 @@ __author__ = "Coal Interpolation Team"
 __email__ = "support@coal-interpolation.com"
 
 from .core import *
-from .io import *
+from .io import *  # Now safe - problematic modules disabled

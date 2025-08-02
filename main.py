@@ -65,6 +65,18 @@ try:
     # Setup dependencies (real or mock)
     mock_mode = setup_dependencies()
     
+    # Initialize internationalization system
+    from src.i18n import init_i18n, detect_system_language
+    from src.gui.dialogs.language_settings_dialog import load_language_preference
+    
+    # Load saved language preference or detect system language
+    try:
+        preferred_language = load_language_preference()
+    except:
+        preferred_language = detect_system_language()
+    
+    i18n_manager = init_i18n(preferred_language)
+    
     from src.gui import MainWindow
     
     def main():

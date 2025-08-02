@@ -18,7 +18,7 @@ from ...io.writers.vtk_writer import VTKWriter
 from ...io.writers.dxf_writer import DXFWriter
 from ...io.writers.base import ExportFormat, GridData, PointData
 from ...core.interpolation.idw import IDWInterpolator, IDWParameters
-from ...core.interpolation.rbf import RBFInterpolator, RBFParameters
+from ...core.interpolation.rbf import RBFInterpolator, RBFParameters, RBFKernel
 from ...core.interpolation.kriging import KrigingInterpolator, KrigingParameters, KrigingType, VariogramModel
 from ...core.interpolation.base import SearchParameters
 from ...core.grid import GridGenerator, GridParameters
@@ -42,6 +42,7 @@ class ApplicationController:
         """Initialize the application controller."""
         self.current_data = None
         self.current_filename = None
+        self.current_file_path = None
         self.current_parameters = None
         self.interpolation_results = None
         
@@ -99,6 +100,7 @@ class ApplicationController:
                 raise ValueError(f"Unsupported file type: {file_ext}")
                 
             self.current_filename = Path(file_path).name
+            self.current_file_path = file_path
             
             # Validate data structure
             self._validate_data_structure()
@@ -106,6 +108,7 @@ class ApplicationController:
             # Emit data loaded event
             data_info = {
                 'filename': self.current_filename,
+                'file_path': self.current_file_path,
                 'rows': len(self.current_data),
                 'columns': list(self.current_data.columns),
                 'bounds': self._calculate_data_bounds()
@@ -164,10 +167,11 @@ class ApplicationController:
                 
             if settings['fill_missing_values']:
                 # Fill missing values (simple forward fill for now)
-                mapped_data = mapped_data.fillna(method='ffill')
+                mapped_data = mapped_data.ffill()
             
             self.current_data = mapped_data
             self.current_filename = Path(file_path).name
+            self.current_file_path = file_path
             
             # Validate data structure
             self._validate_data_structure()
@@ -175,6 +179,7 @@ class ApplicationController:
             # Emit data loaded event
             data_info = {
                 'filename': self.current_filename,
+                'file_path': self.current_file_path,
                 'rows': len(self.current_data),
                 'columns': list(self.current_data.columns),
                 'bounds': self._calculate_data_bounds(),
@@ -302,9 +307,17 @@ class ApplicationController:
             
             # Setup interpolator based on method
             if method == 'RBF':
+                # Convert string kernel parameter to enum
+                kernel_str = parameters.get('rbf_kernel', 'multiquadric')
+                try:
+                    kernel = RBFKernel(kernel_str.lower())
+                except ValueError:
+                    # Fallback to default if invalid kernel
+                    kernel = RBFKernel.MULTIQUADRIC
+                
                 # RBF parameters
                 rbf_params = RBFParameters(
-                    kernel=parameters.get('rbf_kernel', 'multiquadric'),
+                    kernel=kernel,
                     shape_parameter=parameters.get('rbf_shape_parameter', 1.0),
                     regularization=parameters.get('rbf_regularization', 1e-12),
                     polynomial_degree=parameters.get('rbf_polynomial_degree', -1),
@@ -340,14 +353,8 @@ class ApplicationController:
                 interpolator = IDWInterpolator(search_params, idw_params)
             
             # Fit the interpolator
-            if method == 'Kriging':
-                # Kriging expects DataFrame and column names
-                interpolator.fit(self.current_data, 'X', 'Y', value_column)
-            else:
-                # IDW and RBF use points and values arrays
-                training_points = self.current_data[['X', 'Y']]
-                training_values = self.current_data[value_column]
-                interpolator.fit(training_points, training_values)
+            # All interpolators now use the same interface: DataFrame and column names
+            interpolator.fit(self.current_data, 'X', 'Y', value_column)
             
             self.emit_event('interpolation_progress', 50)
             
@@ -517,9 +524,22 @@ class ApplicationController:
         values = np.zeros((n_y, n_x))
         
         for _, row in grid_df.iterrows():
-            x_idx = np.where(x_coords == row['X'])[0][0]
-            y_idx = np.where(y_coords == row['Y'])[0][0]
-            values[y_idx, x_idx] = row[value_col]
+            try:
+                x_idx = np.where(x_coords == row['X'])[0][0]
+                y_idx = np.where(y_coords == row['Y'])[0][0]
+                
+                # Convert value to float, handle string values
+                val = row[value_col]
+                if isinstance(val, str):
+                    try:
+                        val = float(val)
+                    except ValueError:
+                        val = np.nan  # Use NaN for non-numeric strings
+                
+                values[y_idx, x_idx] = val
+            except (IndexError, ValueError, TypeError) as e:
+                print(f"Warning: Error processing row {row.name}: {e}")
+                continue
             
         # Calculate bounds and cell size
         x_min, x_max = float(x_coords.min()), float(x_coords.max())
@@ -672,3 +692,17 @@ class ApplicationController:
             DataFrame with current data or None if no data loaded
         """
         return self.current_data
+        
+    def reload_current_data(self):
+        """
+        Reload the currently loaded data file.
+        
+        Raises:
+            ValueError: If no data file is currently loaded
+            Exception: If the file cannot be reloaded
+        """
+        if not self.current_file_path:
+            raise ValueError("No data file is currently loaded")
+            
+        # Reload using the stored file path
+        self.load_data_file(self.current_file_path)
